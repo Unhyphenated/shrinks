@@ -1,3 +1,31 @@
+# --- Environment and Build ---
+# Python virtual environment folder
+.venv/
 venv/
+env/
 
-*.md
+# Python compiled files
+__pycache__/
+*.pyc
+
+# Distribution/packaging artifacts
+dist/
+build/
+*.egg-info/
+
+# --- IDE Files ---
+# VS Code
+.vscode/
+
+# PyCharm
+.idea/
+
+# --- Deployment and Secrets ---
+# Environment variables (Crucial for security!)
+.env
+.env.*
+
+# Docker artifacts
+# Ignore local image build cache and volumes
+.docker/
+*.log
