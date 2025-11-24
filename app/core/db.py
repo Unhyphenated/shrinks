@@ -1,37 +1,38 @@
-# Skeletons for SQLAlchemy session and Redis client initialization
 from typing import Generator
-# You will need to import your initialized settings object from app.core.config
 
-# --- POSTGRESQL CONNECTION ---
+from app.core.config import Settings
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from redis import Redis
+
+settings = Settings()
+
+engine = create_engine(settings.DATABASE_URL)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 def get_db_session() -> Generator:
-    """
-    Creates and yields a SQLAlchemy session for PostgreSQL.
-    This is the standard pattern for dependency injection in FastAPI.
-    
-    1. Establish connection to PostgreSQL using the DATABASE_URL from settings.
-    2. Yield the session object for use in an endpoint.
-    3. Close the session gracefully when the endpoint finishes.
-    """
     try:
-        # db = SessionLocal() # Initialize session
-        # yield db
-        pass # Placeholder logic
+        db = SessionLocal()
+        yield db
+
     finally:
-        # db.close() # Close session
-        pass # Placeholder logic
+        db.close()
 
-# --- REDIS CACHE CONNECTION ---
+# Global Redis client instance
+redis_client: Redis = None
 
-# The global Redis client instance will be initialized here
-
-def get_redis_client():
+def get_redis_client() -> Redis:
     """
     Returns the initialized global Redis client instance.
-    This client is used directly by the caching logic in the API endpoints.
-    
-    1. Check if the global client is already connected/initialized.
-    2. If not, connect to Redis using the REDIS_URL from settings.
-    3. Return the client instance.
     """
-    pass
+    global redis_client
+    
+    if redis_client is None:
+        redis_client = Redis(
+            host='redis-16264.c10.us-east-1-2.ec2.cloud.redislabs.com',
+            port=16264,
+            decode_responses=True,
+            username="default",
+            password="jKnj4aSNUH62Swx1aHpmQFiQsKHt3RLd",
+        )
+    return redis_client
