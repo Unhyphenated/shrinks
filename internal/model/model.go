@@ -9,3 +9,7 @@ type Link struct {
 	CreatedAt time.Time `db:"created_at"`
 	Clicks uint64 `db:"clicks"`
 }
+
+type CreateLinkRequest struct {
+	URL string `json:"url"`
+}
