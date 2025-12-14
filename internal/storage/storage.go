@@ -4,8 +4,9 @@ import (
 	"context"
 	"fmt"
 
-    "github.com/Unhyphenated/shrinks-backend/internal/encoding"
+	"github.com/Unhyphenated/shrinks-backend/internal/encoding"
 	"github.com/Unhyphenated/shrinks-backend/internal/model"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -44,14 +45,12 @@ func (s *PostgresStore) Close() {
 }
 
 func (s *PostgresStore) SaveLink(ctx context.Context, longURL string) (string, error) {
-	// 1. Begin the Transaction using the pool
 	tx, err := s.Pool.Begin(ctx)
 	if err != nil {
 		return "", fmt.Errorf("failed to start transaction: %w", err)
 	}
 	defer tx.Rollback(ctx) 
 
-	// 2. Insert URL and get ID
 	var generatedID uint64
 	insertQuery := `
 		INSERT INTO links (long_url, short_url) 
@@ -63,10 +62,8 @@ func (s *PostgresStore) SaveLink(ctx context.Context, longURL string) (string, e
 		return "", fmt.Errorf("transaction insert failed: %w", err)
 	}
 
-	// 3. Encode the ID
 	shortURL := encoding.Encode(generatedID) 
 
-	// 4. Update the row with the short code
 	updateQuery := `
 		UPDATE links 
 		SET short_code = $1 
@@ -77,10 +74,35 @@ func (s *PostgresStore) SaveLink(ctx context.Context, longURL string) (string, e
 		return "", fmt.Errorf("transaction update failed: %w", err)
 	}
 
-	// 5. Commit the Transaction
 	if err := tx.Commit(ctx); err != nil {
 		return "", fmt.Errorf("transaction commit failed: %w", err)
 	}
 
 	return shortURL, nil
+}
+
+func (s *PostgresStore) GetLinkByCode(ctx context.Context, shortURL string) (*model.Link, error) {
+	query := `
+		SELECT id, long_url, short_code, created_at 
+		FROM links 
+		WHERE short_code = $1;
+	`
+	link := &model.Link{}
+	err := s.Pool.QueryRow(ctx, query, shortURL).Scan(
+		&link.ID,
+		&link.LongURL,
+		&link.ShortURL,
+		&link.CreatedAt,
+		&link.Clicks,
+	)
+
+	if err != nil {
+        // Handle the specific, common case where the code isn't in the database.
+        if err == pgx.ErrNoRows {
+            return nil, nil // Return nil link and nil error for "not found"
+        }
+        return nil, fmt.Errorf("error querying link by code: %w", err)
+    }
+
+    return link, nil
 }
