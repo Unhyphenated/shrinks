@@ -3,15 +3,14 @@ package storage
 import (
 	"context"
 	"fmt"
-	"time"
 
-	"github.com/Unhyphenated/shrinks-backend/internal/encoding"
+    "github.com/Unhyphenated/shrinks-backend/internal/encoding"
 	"github.com/Unhyphenated/shrinks-backend/internal/model"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type Store interface {
-	SaveLink(ctx context.Context, LongURL string) (string, error)
+	SaveLink(ctx context.Context, longURL string) (string, error)
     GetLinkByCode(ctx context.Context, code string) (*model.Link, error)
     Close()
 }
@@ -44,46 +43,44 @@ func (s *PostgresStore) Close() {
     s.Pool.Close()
 }
 
-func (s *PostgresStore) SaveLink(longURL string) (string, error) {
-    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-    defer cancel()
+func (s *PostgresStore) SaveLink(ctx context.Context, longURL string) (string, error) {
+	// 1. Begin the Transaction using the pool
+	tx, err := s.Pool.Begin(ctx)
+	if err != nil {
+		return "", fmt.Errorf("failed to start transaction: %w", err)
+	}
+	defer tx.Rollback(ctx) 
 
-    tx, err := s.Pool.Begin(ctx)
-    if err != nil {
-        return "", fmt.Errorf("failed to begin transaction: %w", err)
-    }
-
-    defer tx.Rollback(ctx)
-    
-    var generatedID uint64
-    insertQuery := `
+	// 2. Insert URL and get ID
+	var generatedID uint64
+	insertQuery := `
 		INSERT INTO links (long_url, short_url) 
-		VALUES ($1, '') -- Insert with a blank short_code first
+		VALUES ($1, '')
 		RETURNING id;
 	`
+	err = tx.QueryRow(ctx, insertQuery, longURL).Scan(&generatedID)
+	if err != nil {
+		return "", fmt.Errorf("transaction insert failed: %w", err)
+	}
 
-    err = tx.QueryRow(ctx, insertQuery, longURL).Scan(&generatedID)
-    if err != nil {
-        return "", fmt.Errorf("failed to insert link: %w", err)
-    }
+	// 3. Encode the ID
+	shortURL := encoding.Encode(generatedID) 
 
-    shortURL := encoding.Encode(generatedID)
-    
-    updateQuery := `
-        UPDATE links 
-        SET short_url = $1 
-        WHERE id = $2;
-    `
-    
-    _, err = tx.Exec(ctx, updateQuery, shortURL, generatedID)
-    if err != nil {
-        return "", fmt.Errorf("failed to update short_url: %w", err)
-    }
+	// 4. Update the row with the short code
+	updateQuery := `
+		UPDATE links 
+		SET short_code = $1 
+		WHERE id = $2;
+	`
+	_, err = tx.Exec(ctx, updateQuery, shortURL, generatedID)
+	if err != nil {
+		return "", fmt.Errorf("transaction update failed: %w", err)
+	}
 
-    err = tx.Commit(ctx)
-    if err != nil {
-        return "", fmt.Errorf("failed to commit transaction: %w", err)
-    }
+	// 5. Commit the Transaction
+	if err := tx.Commit(ctx); err != nil {
+		return "", fmt.Errorf("transaction commit failed: %w", err)
+	}
 
-    return shortURL, nil
+	return shortURL, nil
 }
