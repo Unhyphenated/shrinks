@@ -3,9 +3,11 @@ package storage
 import (
 	"context"
 	"fmt"
+	"time"
 
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/Unhyphenated/shrinks-backend/internal/encoding"
 	"github.com/Unhyphenated/shrinks-backend/internal/model"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type Store interface {
@@ -40,5 +42,49 @@ func NewPostgresStore(dbURL string) (*PostgresStore, error) {
 }
 
 func (s *PostgresStore) Close() {
-    s.Pool.Close() // The professional way to shut down a pool
+    s.Pool.Close()
+}
+
+func (s *PostgresStore) SaveLink(longURL string) (string, error) {
+    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+    defer cancel()
+
+    tx, err := s.Pool.Begin(ctx)
+    if err != nil {
+        return "", fmt.Errorf("failed to begin transaction: %w", err)
+    }
+
+    defer tx.Rollback(ctx)
+    
+    var generatedID uint64
+    insertQuery := `
+		INSERT INTO links (long_url, short_url) 
+		VALUES ($1, '') -- Insert with a blank short_code first
+		RETURNING id;
+	`
+
+    err = tx.QueryRow(ctx, insertQuery, longURL).Scan(&generatedID)
+    if err != nil {
+        return "", fmt.Errorf("failed to insert link: %w", err)
+    }
+
+    short_url := encoding.Encode(generatedID)
+    
+    updateQuery := `
+        UPDATE links 
+        SET short_url = $1 
+        WHERE id = $2;
+    `
+    
+    _, err = tx.Exec(ctx, updateQuery, short_url, generatedID)
+    if err != nil {
+        return "", fmt.Errorf("failed to update short_url: %w", err)
+    }
+
+    err = tx.Commit(ctx)
+    if err != nil {
+        return "", fmt.Errorf("failed to commit transaction: %w", err)
+    }
+
+    return short_url, nil
 }
