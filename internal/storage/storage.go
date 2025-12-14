@@ -13,6 +13,7 @@ import (
 type Store interface {
 	SaveLink(ctx context.Context, longURL string) (string, error)
     GetLinkByCode(ctx context.Context, code string) (*model.Link, error)
+	UpdateClickCount(ctx context.Context, ID uint64) error
     Close()
 }
 
@@ -101,8 +102,31 @@ func (s *PostgresStore) GetLinkByCode(ctx context.Context, shortURL string) (*mo
         if err == pgx.ErrNoRows {
             return nil, nil // Return nil link and nil error for "not found"
         }
-        return nil, fmt.Errorf("error querying link by code: %w", err)
+	        return nil, fmt.Errorf("error querying link by code: %w", err)
     }
 
     return link, nil
+}
+
+func (s *PostgresStore) UpdateClickCount(ctx context.Context, ID uint64) error {
+	tx, err := s.Pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to start transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	updateQuery := `
+		UPDATE links 
+		SET clicks = clicks + 1 
+		WHERE id = $1;
+	`
+	_, err = tx.Exec(ctx, updateQuery, ID)
+	if err != nil {
+		return fmt.Errorf("failed to update click count: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+	return nil
 }

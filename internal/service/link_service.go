@@ -36,7 +36,6 @@ func (ls *LinkService) Redirect(ctx context.Context, shortURL string) (string, e
 		return "", fmt.Errorf("link not found")
 	}
 
-	// TODO: Implement s.Store.UpdateClickCount(ctx, link.ID)
-
+	ls.Store.UpdateClickCount(ctx, link.ID)
     return link.LongURL, nil
 }
