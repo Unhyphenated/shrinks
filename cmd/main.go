@@ -84,3 +84,22 @@ func handlerShorten(svc *service.LinkService) http.HandlerFunc {
 		util.WriteJSON(w, http.StatusCreated, resp)
 	}
 }
+
+func handlerRedirect(svc *service.LinkService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		shortURL := r.URL.Path[1:]
+
+		if shortURL == "" {
+			util.WriteError(w, http.StatusBadRequest, "Short URL code is required")
+			return
+		}
+
+		longURL, err := svc.Redirect(r.Context(), shortURL)
+		if err != nil {
+			util.WriteError(w, http.StatusNotFound, "Link not found")
+			return
+		}
+		
+		http.Redirect(w, r, longURL, http.StatusFound)
+	}
+}
