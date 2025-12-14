@@ -16,6 +16,7 @@ func main() {
 		log.Fatalf("Error loading .env file: %v", err)
 	}
 
+	// Create PostgresStore
 	dbURL := os.Getenv("DATABASE_URL")
 
 	if dbURL == "" {
@@ -28,6 +29,8 @@ func main() {
     }
 
 	defer store.Close()
+
+	// Simple HTTP server setup
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("POST /shorten", func(w http.ResponseWriter, r* http.Request) {
