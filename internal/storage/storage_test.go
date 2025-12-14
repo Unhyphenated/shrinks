@@ -29,7 +29,6 @@ func TestMain(m *testing.M) {
 		log.Fatalf("Failed to initialize test store: %v", err)
 	}
 	
-	// Run all tests in this package
 	exitCode := m.Run() 
 	
 	// Teardown: Close the connection pool after all tests are done
@@ -64,9 +63,60 @@ func TestStorage_SaveAndGetLink(t *testing.T) {
 		t.Errorf("Expected URL %s, Got %s", longURL, link.LongURL)
 	}
 	
-	// CLEANUP: Always remove test data from the database
 	_, err = testStore.Pool.Exec(ctx, "DELETE FROM links WHERE short_code = $1", shortURL)
 	if err != nil {
 		t.Logf("Cleanup failed: %v", err) // Log but don't fail the test
+	}
+}
+
+// internal/storage/storage_test.go
+
+func TestStorage_UpdateClickCount(t *testing.T) {
+	ctx := context.Background()
+	longURL := "https://www.testing-my-click-tracker.com/page-a"
+
+	var shortURL string
+
+	// 1. Setup: Insert a new link to get an ID (clicks starts at 0)
+	var err error
+	shortURL, err = testStore.SaveLink(ctx, longURL)
+	if err != nil {
+		t.Fatalf("Setup failed: SaveLink: %v", err)
+	}
+	
+	// 2. Schedule Cleanup: CRITICAL STEP
+	// This function ensures the row is deleted, even if the test fails at step 3.
+	t.Cleanup(func() {
+		_, err := testStore.Pool.Exec(ctx, "DELETE FROM links WHERE short_code = $1", shortURL)
+		if err != nil {
+			// Log cleanup failure, but don't fail the test itself
+			t.Logf("Cleanup failed for shortURL %s: %v", shortURL, err)
+		}
+	})
+
+	// 3. Read Initial State: Get the link to retrieve the initial ID and click count (0)
+	link, err := testStore.GetLinkByCode(ctx, shortURL)
+	if err != nil || link == nil {
+		t.Fatalf("Setup failed: GetLinkByCode: %v", err)
+	}
+    
+    if link.Clicks != 0 {
+        t.Fatalf("Initial clicks expected 0, got %d", link.Clicks)
+    }
+
+	err = testStore.UpdateClickCount(ctx, link.ID)
+	if err != nil {
+		t.Fatalf("UpdateClickCount failed: %v", err)
+	}
+
+	updatedLink, err := testStore.GetLinkByCode(ctx, shortURL)
+	if err != nil || updatedLink == nil {
+		t.Fatalf("Verification failed: GetLinkByCode after update: %v", err)
+	}
+
+	// CRITICAL CHECK: The count must have incremented by exactly 1 (0 -> 1)
+	expectedClicks := link.Clicks + 1 
+	if updatedLink.Clicks != expectedClicks {
+		t.Errorf("Click count mismatch: Expected %d, Got %d", expectedClicks, updatedLink.Clicks)
 	}
 }
