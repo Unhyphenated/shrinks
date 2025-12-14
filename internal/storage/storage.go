@@ -11,9 +11,8 @@ import (
 )
 
 type Store interface {
-	SaveLink(link model.Link) (uint64, error)
-	GetLinkByCode(code string) (*model.Link, error)
-	// We'll add a Close method to satisfy deferral in main
+	SaveLink(ctx context.Context, LongURL string) (string, error)
+    GetLinkByCode(ctx context.Context, code string) (*model.Link, error)
     Close()
 }
 
@@ -68,7 +67,7 @@ func (s *PostgresStore) SaveLink(longURL string) (string, error) {
         return "", fmt.Errorf("failed to insert link: %w", err)
     }
 
-    short_url := encoding.Encode(generatedID)
+    shortURL := encoding.Encode(generatedID)
     
     updateQuery := `
         UPDATE links 
@@ -76,7 +75,7 @@ func (s *PostgresStore) SaveLink(longURL string) (string, error) {
         WHERE id = $2;
     `
     
-    _, err = tx.Exec(ctx, updateQuery, short_url, generatedID)
+    _, err = tx.Exec(ctx, updateQuery, shortURL, generatedID)
     if err != nil {
         return "", fmt.Errorf("failed to update short_url: %w", err)
     }
@@ -86,5 +85,5 @@ func (s *PostgresStore) SaveLink(longURL string) (string, error) {
         return "", fmt.Errorf("failed to commit transaction: %w", err)
     }
 
-    return short_url, nil
+    return shortURL, nil
 }
