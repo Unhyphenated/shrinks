@@ -1,13 +1,17 @@
 package main
 
 import (
-    "fmt"
-    "log"
+	"encoding/json"
+	"fmt"
+	"log"
+	"net/http"
 	"os"
-    "net/http"
 
-	"github.com/joho/godotenv"
+	"github.com/Unhyphenated/shrinks-backend/internal/model"
+	"github.com/Unhyphenated/shrinks-backend/internal/service"
 	"github.com/Unhyphenated/shrinks-backend/internal/storage"
+	"github.com/Unhyphenated/shrinks-backend/internal/util"
+	"github.com/joho/godotenv"
 )
 
 func main() {
@@ -49,4 +53,53 @@ func main() {
 	}
 
 	log.Println("Application is ready to serve requests.")
+}
+
+func handlerShorten(svc *service.LinkService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req model.CreateLinkRequest
+
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			   util.WriteError(w, http.StatusBadRequest, "Invalid request payload")
+			return
+		}
+
+		if req.URL == "" {
+			   util.WriteError(w, http.StatusBadRequest, "URL is required")
+			return
+		}
+
+		shortURL, err := svc.Shorten(r.Context(), req.URL)
+
+		if err != nil {
+			   util.WriteError(w, http.StatusInternalServerError, "Failed to shorten URL")
+			return
+		}
+
+		resp := model.CreateLinkResponse{
+			ShortURL: shortURL, 
+			LongURL: req.URL,
+		}
+
+		util.WriteJSON(w, http.StatusCreated, resp)
+	}
+}
+
+func handlerRedirect(svc *service.LinkService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		shortURL := r.URL.Path[1:]
+
+		if shortURL == "" {
+			util.WriteError(w, http.StatusBadRequest, "Short URL code is required")
+			return
+		}
+
+		longURL, err := svc.Redirect(r.Context(), shortURL)
+		if err != nil {
+			util.WriteError(w, http.StatusNotFound, "Link not found")
+			return
+		}
+		
+		http.Redirect(w, r, longURL, http.StatusFound)
+	}
 }

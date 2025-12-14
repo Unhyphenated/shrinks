@@ -12,4 +12,10 @@ type Link struct {
 
 type CreateLinkRequest struct {
 	URL string `json:"url"`
+	CustomCode string `json:"custom_code"`
+}
+
+type CreateLinkResponse struct {
+	ShortURL string `json:"short_url"`
+	LongURL string `json:"long_url"`
 }

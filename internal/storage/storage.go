@@ -4,14 +4,16 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/Unhyphenated/shrinks-backend/internal/encoding"
 	"github.com/Unhyphenated/shrinks-backend/internal/model"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type Store interface {
-	SaveLink(link model.Link) (uint64, error)
-	GetLinkByCode(code string) (*model.Link, error)
-	// We'll add a Close method to satisfy deferral in main
+	SaveLink(ctx context.Context, longURL string) (string, error)
+    GetLinkByCode(ctx context.Context, code string) (*model.Link, error)
+	UpdateClickCount(ctx context.Context, ID uint64) error
     Close()
 }
 
@@ -40,5 +42,91 @@ func NewPostgresStore(dbURL string) (*PostgresStore, error) {
 }
 
 func (s *PostgresStore) Close() {
-    s.Pool.Close() // The professional way to shut down a pool
+    s.Pool.Close()
+}
+
+func (s *PostgresStore) SaveLink(ctx context.Context, longURL string) (string, error) {
+	tx, err := s.Pool.Begin(ctx)
+	if err != nil {
+		return "", fmt.Errorf("failed to start transaction: %w", err)
+	}
+	defer tx.Rollback(ctx) 
+
+	var generatedID uint64
+	insertQuery := `
+		INSERT INTO links (long_url, short_url) 
+		VALUES ($1, '')
+		RETURNING id;
+	`
+	err = tx.QueryRow(ctx, insertQuery, longURL).Scan(&generatedID)
+	if err != nil {
+		return "", fmt.Errorf("transaction insert failed: %w", err)
+	}
+
+	shortURL := encoding.Encode(generatedID) 
+
+	updateQuery := `
+		UPDATE links 
+		SET short_code = $1 
+		WHERE id = $2;
+	`
+	_, err = tx.Exec(ctx, updateQuery, shortURL, generatedID)
+	if err != nil {
+		return "", fmt.Errorf("transaction update failed: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return "", fmt.Errorf("transaction commit failed: %w", err)
+	}
+
+	return shortURL, nil
+}
+
+func (s *PostgresStore) GetLinkByCode(ctx context.Context, shortURL string) (*model.Link, error) {
+	query := `
+		SELECT id, long_url, short_code, created_at 
+		FROM links 
+		WHERE short_code = $1;
+	`
+	link := &model.Link{}
+	err := s.Pool.QueryRow(ctx, query, shortURL).Scan(
+		&link.ID,
+		&link.LongURL,
+		&link.ShortURL,
+		&link.CreatedAt,
+		&link.Clicks,
+	)
+
+	if err != nil {
+        // Handle the specific, common case where the code isn't in the database.
+        if err == pgx.ErrNoRows {
+            return nil, nil // Return nil link and nil error for "not found"
+        }
+	        return nil, fmt.Errorf("error querying link by code: %w", err)
+    }
+
+    return link, nil
+}
+
+func (s *PostgresStore) UpdateClickCount(ctx context.Context, ID uint64) error {
+	tx, err := s.Pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to start transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	updateQuery := `
+		UPDATE links 
+		SET clicks = clicks + 1 
+		WHERE id = $1;
+	`
+	_, err = tx.Exec(ctx, updateQuery, ID)
+	if err != nil {
+		return fmt.Errorf("failed to update click count: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+	return nil
 }
