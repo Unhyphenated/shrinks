@@ -67,7 +67,7 @@ func (s *PostgresStore) SaveLink(ctx context.Context, longURL string) (string, e
 
 	updateQuery := `
 		UPDATE links 
-		SET short_code = $1 
+		SET short_url = $1 
 		WHERE id = $2;
 	`
 	_, err = tx.Exec(ctx, updateQuery, shortURL, generatedID)
@@ -84,9 +84,9 @@ func (s *PostgresStore) SaveLink(ctx context.Context, longURL string) (string, e
 
 func (s *PostgresStore) GetLinkByCode(ctx context.Context, shortURL string) (*model.Link, error) {
 	query := `
-		SELECT id, long_url, short_code, created_at 
+		SELECT id, long_url, short_url, created_at, clicks
 		FROM links 
-		WHERE short_code = $1;
+		WHERE short_url = $1;
 	`
 	link := &model.Link{}
 	err := s.Pool.QueryRow(ctx, query, shortURL).Scan(
