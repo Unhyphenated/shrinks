@@ -63,7 +63,7 @@ func TestStorage_SaveAndGetLink(t *testing.T) {
 		t.Errorf("Expected URL %s, Got %s", longURL, link.LongURL)
 	}
 	
-	_, err = testStore.Pool.Exec(ctx, "DELETE FROM links WHERE short_code = $1", shortURL)
+	_, err = testStore.Pool.Exec(ctx, "DELETE FROM links WHERE short_url = $1", shortURL)
 	if err != nil {
 		t.Logf("Cleanup failed: %v", err) // Log but don't fail the test
 	}
@@ -87,7 +87,7 @@ func TestStorage_UpdateClickCount(t *testing.T) {
 	// 2. Schedule Cleanup: CRITICAL STEP
 	// This function ensures the row is deleted, even if the test fails at step 3.
 	t.Cleanup(func() {
-		_, err := testStore.Pool.Exec(ctx, "DELETE FROM links WHERE short_code = $1", shortURL)
+		_, err := testStore.Pool.Exec(ctx, "DELETE FROM links WHERE short_url = $1", shortURL)
 		if err != nil {
 			// Log cleanup failure, but don't fail the test itself
 			t.Logf("Cleanup failed for shortURL %s: %v", shortURL, err)
