@@ -24,4 +24,4 @@ jobs:
               run: go test -v ./cmd ./internal/encoding 
         
             - name: Build Application
-              run: go build -v ./cmd
+              run: go build -v -o app ./cmd
