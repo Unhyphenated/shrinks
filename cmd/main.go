@@ -15,10 +15,7 @@ import (
 )
 
 func main() {
-	err := godotenv.Load() 
-	if err != nil {
-		log.Fatalf("Error loading .env file: %v", err)
-	}
+	_ = godotenv.Load()
 
 	// Create PostgresStore
 	dbURL := os.Getenv("DATABASE_URL")
