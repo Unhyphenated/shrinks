@@ -15,10 +15,7 @@ import (
 )
 
 func main() {
-	err := godotenv.Load() 
-	if err != nil {
-		log.Fatalf("Error loading .env file: %v", err)
-	}
+	_ = godotenv.Load()
 
 	// Create PostgresStore
 	dbURL := os.Getenv("DATABASE_URL")
@@ -39,13 +36,8 @@ func main() {
 	// Simple HTTP server setup
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("POST /shorten", func(w http.ResponseWriter, r* http.Request) {
-		handlerShorten(linkService)
-	})
-
-	mux.HandleFunc("GET /{shortURL}", func(w http.ResponseWriter, r* http.Request) {
-		handlerRedirect(linkService)
-	})
+	mux.HandleFunc("POST /shorten",   handlerShorten(linkService))
+	mux.HandleFunc("GET /{shortURL}", handlerRedirect(linkService))
 
 	fmt.Println("Server starting on :8080")
 
