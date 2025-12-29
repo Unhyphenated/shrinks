@@ -4,17 +4,21 @@ import (
 	"context"
 	"fmt"
 	"time"
-	"encoding/json"
 
-	"github.com/Unhyphenated/shrinks-backend/internal/model"
 	"github.com/redis/go-redis/v9"
 )
 
-type Cache struct {
+type Cache interface {
+	Get(ctx context.Context, key string) (string, error)
+	Set(ctx context.Context, key string, val string, expiration time.Duration) error
+	Close()
+}
+
+type RedisCache struct {
 	Client *redis.Client
 }
 
-func NewRedisCache(redisURL string) (*Cache, error) {
+func NewRedisCache(redisURL string) (*RedisCache, error) {
 	opts, err := redis.ParseURL(redisURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse Redis URL: %w", err)
@@ -29,38 +33,28 @@ func NewRedisCache(redisURL string) (*Cache, error) {
 
 	fmt.Println("Successfully initialized Redis Client!")
 
-	return &Cache{Client: client}, nil
+	return &RedisCache{Client: client}, nil
 }
 
-func (c *Cache) Get(ctx context.Context, key string) (*model.Link, error) {
+func (c *RedisCache) Get(ctx context.Context, key string) (string, error) {
 	val, err := c.Client.Get(ctx, key).Result()
 	if err == redis.Nil {
-		return &model.Link{}, nil
+		return "", nil
 	} else if err != nil {
-		return nil, fmt.Errorf("failed to get value from Redis: %w", err)
+		return "", fmt.Errorf("failed to get value from Redis: %w", err)
 	}
 
-	return &model.Link{
-		LongURL: val,
-		ShortURL: key,
-		Clicks: 0,
-		CreatedAt: time.Now(),
-	}, nil
+	return val, nil
 }
 
-func (c *Cache) Set(ctx context.Context, key string, val *model.Link, expiration time.Duration) error {
-	jsonData, err := json.Marshal(val)
-	if err != nil {
-		return fmt.Errorf("Failed to marshal link to JSON: %w", err)
-	}
-
-	err = c.Client.Set(ctx, key, jsonData, expiration).Err()
+func (c *RedisCache) Set(ctx context.Context, key string, val string, expiration time.Duration) error {
+	err := c.Client.Set(ctx, key, val, expiration).Err()
 	if err != nil {
 		return fmt.Errorf("failed to set value in Redis: %w", err)
 	}
 	return nil
 }
 
-func (c *Cache) Close() {
+func (c *RedisCache) Close() {
 	c.Client.Close()
 }
