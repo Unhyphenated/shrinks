@@ -3,16 +3,20 @@ package service
 import (
 	"context"
 	"fmt"
-	
+	"log"
+	"time"
+
+	"github.com/Unhyphenated/shrinks-backend/internal/cache"
 	"github.com/Unhyphenated/shrinks-backend/internal/storage"
 )
 
 type LinkService struct {
 	Store storage.Store // The Store interface is the dependency
+	Cache cache.Cache
 }
 
-func NewLinkService(s storage.Store) *LinkService {
-	return &LinkService{Store: s}
+func NewLinkService(s storage.Store, c cache.Cache) *LinkService {
+	return &LinkService{Store: s, Cache: c}
 }
 
 func (ls *LinkService) Shorten(ctx context.Context, longURL string) (string, error) {
@@ -27,6 +31,16 @@ func (ls *LinkService) Shorten(ctx context.Context, longURL string) (string, err
 }
 
 func (ls *LinkService) Redirect(ctx context.Context, shortURL string) (string, error) {
+	// Check if link is in cache
+	longURL, err := ls.Cache.Get(ctx, shortURL)
+	if err != nil {
+		log.Printf("Cache error (falling back to DB): %v", err)
+	}
+
+	if longURL != "" {
+		return longURL, nil
+	}
+
 	link, err := ls.Store.GetLinkByCode(ctx, shortURL)
 	if err != nil {
 		return "", fmt.Errorf("failed to get link by code: %w", err)
@@ -36,6 +50,14 @@ func (ls *LinkService) Redirect(ctx context.Context, shortURL string) (string, e
 		return "", fmt.Errorf("link not found")
 	}
 
+	if ls.Cache != nil {
+		go func() {
+			if err := ls.Cache.Set(context.Background(), shortURL, link.LongURL, 24*time.Hour); err != nil {
+				log.Printf("Failed to cache link: %v", err)
+			}
+		}()
+	}
+
 	ls.Store.UpdateClickCount(ctx, link.ID)
-    return link.LongURL, nil
+	return link.LongURL, nil
 }

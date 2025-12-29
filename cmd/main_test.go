@@ -4,14 +4,15 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors" // Needed for simulating internal errors
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"errors" // Needed for simulating internal errors
-	
+	"time"
+
+	"github.com/Unhyphenated/shrinks-backend/internal/encoding"
 	"github.com/Unhyphenated/shrinks-backend/internal/model"
 	"github.com/Unhyphenated/shrinks-backend/internal/service"
-    "github.com/Unhyphenated/shrinks-backend/internal/encoding"
 )
 
 
@@ -32,6 +33,17 @@ func newMockStore(cfg MockConfig) *service.MockStore {
     }
 }
 
+func newMockCache() *service.MockCache {
+    return &service.MockCache{
+        GetFn: func(ctx context.Context, key string) (string, error) {
+            return "", nil // Default: cache miss (empty string)
+        },
+        SetFn: func(ctx context.Context, key string, val string, expiration time.Duration) error {
+            return nil // Default: no-op
+        },
+        CloseFn: func() {},
+    }
+}
 
 // =================================================================
 // 1. E2E Test: Success Case (HTTP 201 Created)
@@ -52,8 +64,9 @@ func TestHandlerShorten_Success(t *testing.T) {
         },
     }
 	mockStore := newMockStore(cfg)
+	mockCache := newMockCache()
 
-	svc := service.NewLinkService(mockStore)
+	svc := service.NewLinkService(mockStore, mockCache)
 	handler := handlerShorten(svc)
 
 	reqBody := model.CreateLinkRequest{URL: expectedLongURL}
@@ -94,8 +107,8 @@ func TestHandlerShorten_InternalServerError(t *testing.T) {
         },
     }
 	mockStore := newMockStore(cfg)
-
-	svc := service.NewLinkService(mockStore)
+	mockCache := newMockCache()
+	svc := service.NewLinkService(mockStore, mockCache)
 	handler := handlerShorten(svc)
 
 	reqBody := model.CreateLinkRequest{URL: testURL}
@@ -118,8 +131,8 @@ func TestHandlerShorten_InternalServerError(t *testing.T) {
 
 func TestHandlerShorten_BadRequest(t *testing.T) {
     mockStore := newMockStore(MockConfig{}) 
-
-	svc := service.NewLinkService(mockStore)
+	mockCache := newMockCache()
+	svc := service.NewLinkService(mockStore, mockCache)
 	handler := handlerShorten(svc)
 
 	invalidBody := `{"not_a_url_field": "test"}`
