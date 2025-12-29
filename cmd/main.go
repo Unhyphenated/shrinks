@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/Unhyphenated/shrinks-backend/internal/cache"
 	"github.com/Unhyphenated/shrinks-backend/internal/model"
 	"github.com/Unhyphenated/shrinks-backend/internal/service"
 	"github.com/Unhyphenated/shrinks-backend/internal/storage"
@@ -19,6 +20,7 @@ func main() {
 
 	// Create PostgresStore
 	dbURL := os.Getenv("DATABASE_URL")
+	redisURL := os.Getenv("REDIS_URL")
 
 	if dbURL == "" {
         log.Fatal("DATABASE_URL environment variable is not set. Cannot connect to Postgres.") 
@@ -31,7 +33,13 @@ func main() {
 
 	defer store.Close()
 
-	linkService := service.NewLinkService(store)
+	cache, err := cache.NewRedisCache(redisURL)
+	if err != nil {
+		log.Fatalf("Failed to initialize Redis cache: %v", err)
+	}
+	defer cache.Close()
+
+	linkService := service.NewLinkService(store, cache)
 
 	// Simple HTTP server setup
 	mux := http.NewServeMux()
