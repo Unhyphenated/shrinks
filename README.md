@@ -19,46 +19,13 @@ Shrinks is a scalable URL shortening service that handles thousands of requests 
 
 ---
 
-## Technical Deep Dive
+## Example Usage
 
-### Base62 Encoding
-Instead of using random strings or UUIDs, Shrinks uses **Base62 encoding** of auto-incrementing PostgreSQL IDs:
-
-- **Why Base62?** Uses `[0-9a-zA-Z]` (62 characters) for URL-safe, human-readable short codes
-- **Collision Avoidance:** Deterministic encoding of sequential IDs guarantees uniqueness
-- **Scalability:** 62^6 = 56.8 billion possible URLs with just 6 characters
-- **Reversibility:** Can decode short codes back to database IDs for analytics
-
-**Example:**
 ```
 Database ID: 123456789
 Base62 Code: 8M0kX
 Short URL:   https://shrinks.io/8M0kX
 ```
-
-### Redis Caching Strategy
-
-Implements the **Cache-Aside (Lazy Loading)** pattern:
-
-1. **Read Path:**
-   - Check Redis cache first (O(1) lookup)
-   - On cache miss: Query Postgres → Cache result → Return
-   - On cache hit: Return immediately (~1ms vs ~10ms DB query)
-
-2. **Write Path:**
-   - Insert into Postgres (source of truth)
-   - Asynchronously populate cache with 24-hour TTL
-   - No cache invalidation needed (immutable URLs)
-
-3. **Why Cache-Aside?**
-   - Resilient: Application continues working if Redis fails
-   - Efficient: Only hot links consume cache memory
-   - Simple: No complex cache invalidation logic
-
-**Performance Impact:**
-- Cache hit latency: **~1-2ms**
-- Cache miss latency: **~8-12ms**
-- Cache hit rate: **~85%** on production-like workloads (Zipfian distribution)
 
 ---
 
@@ -109,22 +76,6 @@ Load tested with [Vegeta](https://github.com/tsenart/vegeta) on a local developm
 - System handles **5,000+ RPS** for reads with sub-5ms P99 latency
 - Write performance bottlenecked by Postgres inserts (~1,000 RPS)
 - Zero errors under sustained load
-
----
-
-## Tech Stack
-
-| Component | Technology | Purpose |
-|-----------|-----------|---------|
-| **Language** | Go 1.23.3 | High-performance backend |
-| **Database** | PostgreSQL 16 | Persistent URL storage |
-| **Cache** | Redis 7 | Hot link caching |
-| **Containerization** | Docker + Docker Compose | Local development & deployment |
-| **Load Testing** | Vegeta | Performance benchmarking |
-| **Testing** | Go testing + testify | Unit & integration tests |
-| **CI/CD** | GitHub Actions | Automated testing pipeline |
-
----
 
 ## Roadmap
 
