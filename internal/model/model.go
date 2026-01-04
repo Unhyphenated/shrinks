@@ -42,3 +42,15 @@ type CreateLinkResponse struct {
 	ShortCode string `json:"short_code"`
 	LongURL string `json:"long_url"`
 }
+
+// Analytics Models
+type AnalyticsEvent struct {
+	ID uint64 `db:"id"`
+	LinkID uint64 `db:"link_id"`
+	IPAddress string `db:"ip_address"`
+	UserAgent string `db:"user_agent"`
+	DeviceType string `db:"device_type"`
+	OS string `db:"os"`
+	Browser string `db:"browser"`
+	ClickedAt time.Time `db:"clicked_at"`
+}
