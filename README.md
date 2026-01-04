@@ -91,7 +91,7 @@ Load tested with [Vegeta](https://github.com/tsenart/vegeta) on a local developm
 - [x] CI pipeline for automated testing
 
 ### Phase 2: Production Readiness (In Progress)
-- [ ] Database migrations with [Goose](https://github.com/pressly/goose)
+- [X] Database migrations with [Goose](https://github.com/pressly/goose)
 - [ ] Custom authentication system (JWT + Bcrypt)
 - [ ] Multi-tenancy support (user-owned links)
 - [ ] Rate limiting middleware (per-IP and per-user)
