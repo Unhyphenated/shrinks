@@ -86,8 +86,8 @@ func TestHandlerShorten_Success(t *testing.T) {
 		t.Fatalf("Failed to decode response: %v", err)
 	}
 	
-	if resp.ShortURL != expectedShortURL {
-		t.Errorf("Short code mismatch: Got %s, want %s", resp.ShortURL, expectedShortURL)
+	if resp.ShortCode != expectedShortURL {
+		t.Errorf("Short code mismatch: Got %s, want %s", resp.ShortCode, expectedShortURL)
 	}
 }
 

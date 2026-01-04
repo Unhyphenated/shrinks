@@ -71,7 +71,7 @@ func handlerShorten(svc *service.LinkService) http.HandlerFunc {
 			return
 		}
 
-		shortURL, err := svc.Shorten(r.Context(), req.URL)
+		shortCode, err := svc.Shorten(r.Context(), req.URL)
 
 		if err != nil {
 			   util.WriteError(w, http.StatusInternalServerError, "Failed to shorten URL")
@@ -79,7 +79,7 @@ func handlerShorten(svc *service.LinkService) http.HandlerFunc {
 		}
 
 		resp := model.CreateLinkResponse{
-			ShortURL: shortURL, 
+			ShortCode: shortCode, 
 			LongURL: req.URL,
 		}
 
