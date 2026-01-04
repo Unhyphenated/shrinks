@@ -13,7 +13,6 @@ import (
 type Store interface {
 	SaveLink(ctx context.Context, longURL string) (string, error)
     GetLinkByCode(ctx context.Context, code string) (*model.Link, error)
-	UpdateClickCount(ctx context.Context, ID uint64) error
     Close()
 }
 
@@ -54,7 +53,7 @@ func (s *PostgresStore) SaveLink(ctx context.Context, longURL string) (string, e
 
 	var generatedID uint64
 	insertQuery := `
-		INSERT INTO links (long_url, short_url) 
+		INSERT INTO links (long_url, short_code) 
 		VALUES ($1, '')
 		RETURNING id;
 	`
@@ -67,7 +66,7 @@ func (s *PostgresStore) SaveLink(ctx context.Context, longURL string) (string, e
 
 	updateQuery := `
 		UPDATE links 
-		SET short_url = $1 
+		SET short_code = $1 
 		WHERE id = $2;
 	`
 	_, err = tx.Exec(ctx, updateQuery, shortURL, generatedID)
@@ -84,17 +83,16 @@ func (s *PostgresStore) SaveLink(ctx context.Context, longURL string) (string, e
 
 func (s *PostgresStore) GetLinkByCode(ctx context.Context, shortURL string) (*model.Link, error) {
 	query := `
-		SELECT id, long_url, short_url, created_at, clicks
+		SELECT id, long_url, short_code, created_at
 		FROM links 
-		WHERE short_url = $1;
+		WHERE short_code = $1;
 	`
 	link := &model.Link{}
 	err := s.Pool.QueryRow(ctx, query, shortURL).Scan(
 		&link.ID,
 		&link.LongURL,
-		&link.ShortURL,
+		&link.ShortCode,
 		&link.CreatedAt,
-		&link.Clicks,
 	)
 
 	if err != nil {
@@ -106,27 +104,4 @@ func (s *PostgresStore) GetLinkByCode(ctx context.Context, shortURL string) (*mo
     }
 
     return link, nil
-}
-
-func (s *PostgresStore) UpdateClickCount(ctx context.Context, ID uint64) error {
-	tx, err := s.Pool.Begin(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to start transaction: %w", err)
-	}
-	defer tx.Rollback(ctx)
-
-	updateQuery := `
-		UPDATE links 
-		SET clicks = clicks + 1 
-		WHERE id = $1;
-	`
-	_, err = tx.Exec(ctx, updateQuery, ID)
-	if err != nil {
-		return fmt.Errorf("failed to update click count: %w", err)
-	}
-
-	if err := tx.Commit(ctx); err != nil {
-		return fmt.Errorf("failed to commit transaction: %w", err)
-	}
-	return nil
 }

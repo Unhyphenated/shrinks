@@ -23,16 +23,16 @@ func (ls *LinkService) Shorten(ctx context.Context, longURL string) (string, err
 	// Rate Limiting
 	// Input Sanitation
 
-	shortURL, err := ls.Store.SaveLink(ctx, longURL)
+	shortCode, err := ls.Store.SaveLink(ctx, longURL)
 	if err != nil {
 		return "", fmt.Errorf("failed to save link: %w", err)
 	}
-	return shortURL, nil
+	return shortCode, nil
 }
 
-func (ls *LinkService) Redirect(ctx context.Context, shortURL string) (string, error) {
+func (ls *LinkService) Redirect(ctx context.Context, shortCode string) (string, error) {
 	// Check if link is in cache
-	longURL, err := ls.Cache.Get(ctx, shortURL)
+	longURL, err := ls.Cache.Get(ctx, shortCode)
 	if err != nil {
 		log.Printf("Cache error (falling back to DB): %v", err)
 	}
@@ -41,7 +41,7 @@ func (ls *LinkService) Redirect(ctx context.Context, shortURL string) (string, e
 		return longURL, nil
 	}
 
-	link, err := ls.Store.GetLinkByCode(ctx, shortURL)
+	link, err := ls.Store.GetLinkByCode(ctx, shortCode)
 	if err != nil {
 		return "", fmt.Errorf("failed to get link by code: %w", err)
 	}
@@ -52,12 +52,11 @@ func (ls *LinkService) Redirect(ctx context.Context, shortURL string) (string, e
 
 	if ls.Cache != nil {
 		go func() {
-			if err := ls.Cache.Set(context.Background(), shortURL, link.LongURL, 24*time.Hour); err != nil {
+			if err := ls.Cache.Set(context.Background(), shortCode, link.LongURL, 24*time.Hour); err != nil {
 				log.Printf("Failed to cache link: %v", err)
 			}
 		}()
 	}
 
-	ls.Store.UpdateClickCount(ctx, link.ID)
 	return link.LongURL, nil
 }

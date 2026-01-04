@@ -92,6 +92,8 @@ Load tested with [Vegeta](https://github.com/tsenart/vegeta) on a local developm
 
 ### Phase 2: Production Readiness (In Progress)
 - [X] Database migrations with [Goose](https://github.com/pressly/goose)
+- [ ] Updated models
+- [ ] Input sanitation
 - [ ] Custom authentication system (JWT + Bcrypt)
 - [ ] Multi-tenancy support (user-owned links)
 - [ ] Rate limiting middleware (per-IP and per-user)
