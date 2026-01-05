@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/Unhyphenated/shrinks-backend/internal/auth"
 	"github.com/Unhyphenated/shrinks-backend/internal/cache"
 	"github.com/Unhyphenated/shrinks-backend/internal/model"
 	"github.com/Unhyphenated/shrinks-backend/internal/service"
@@ -40,12 +41,17 @@ func main() {
 	defer cache.Close()
 
 	linkService := service.NewLinkService(store, cache)
+	authService := auth.NewAuthService(store)
 
 	// Simple HTTP server setup
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("POST /shorten",   handlerShorten(linkService))
 	mux.HandleFunc("GET /{shortURL}", handlerRedirect(linkService))
+
+
+	mux.HandleFunc("POST /register", handlerRegister(authService))
+	mux.HandleFunc("POST /login", handlerLogin(authService))
 
 	fmt.Println("Server starting on :8080")
 
@@ -55,6 +61,18 @@ func main() {
 	}
 
 	log.Println("Application is ready to serve requests.")
+}
+
+func handlerRegister(svc *auth.AuthService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+	}
+}
+
+func handlerLogin(svc *auth.AuthService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+	}
 }
 
 func handlerShorten(svc *service.LinkService) http.HandlerFunc {
