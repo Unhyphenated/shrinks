@@ -117,11 +117,15 @@ func (s *PostgresStore) CreateUser(ctx context.Context, email string, passwordHa
 	insertQuery := `
 		INSERT INTO users (email, password_hash)
 		VALUES ($1, $2)
+		ON CONFLICT (email) DO NOTHING
 		RETURNING id;
 	`
 
 	err := s.Pool.QueryRow(ctx, insertQuery, email, passwordHash).Scan(&generatedID)
 	if err != nil {
+		if err != pgx.ErrNoRows {
+			return 0, fmt.Errorf("error inserting user: %w", err)
+		}
 		return 0, fmt.Errorf("transaction insert failed: %w", err)
 	}
 
