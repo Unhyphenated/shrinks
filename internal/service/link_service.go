@@ -11,11 +11,11 @@ import (
 )
 
 type LinkService struct {
-	Store storage.Store // The Store interface is the dependency
+	Store storage.LinkStore // The Store interface is the dependency
 	Cache cache.Cache
 }
 
-func NewLinkService(s storage.Store, c cache.Cache) *LinkService {
+func NewLinkService(s storage.LinkStore, c cache.Cache) *LinkService {
 	return &LinkService{Store: s, Cache: c}
 }
 
