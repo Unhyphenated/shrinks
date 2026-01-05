@@ -23,12 +23,10 @@ type MockConfig struct {
 func newMockStore(cfg MockConfig) *service.MockStore {
     // Default implementation for methods not being tested
     defaultGetFn := func(ctx context.Context, shortURL string) (*model.Link, error) { return nil, nil }
-    defaultUpdateFn := func(ctx context.Context, linkID uint64) error { return nil }
 
     return &service.MockStore{
         SaveLinkFn:         cfg.SaveLinkFn,
         GetLinkByCodeFn:    defaultGetFn,
-        UpdateClickCountFn: defaultUpdateFn,
         CloseFn:            func() {},
     }
 }
