@@ -10,10 +10,16 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type Store interface {
+type LinkStore interface {
 	SaveLink(ctx context.Context, longURL string) (string, error)
     GetLinkByCode(ctx context.Context, code string) (*model.Link, error)
     Close()
+}
+
+type AuthStore interface {
+	CreateUser(ctx context.Context, email string, passwordHash string) (uint64, error)
+	GetUserByEmail(ctx context.Context, email string) (*model.User, error)
+	Close()
 }
 
 type PostgresStore struct {
@@ -104,4 +110,42 @@ func (s *PostgresStore) GetLinkByCode(ctx context.Context, shortURL string) (*mo
     }
 
     return link, nil
+}
+
+func (s *PostgresStore) CreateUser(ctx context.Context, email string, passwordHash string) (uint64, error) {
+	var generatedID uint64
+	insertQuery := `
+		INSERT INTO users (email, password_hash)
+		VALUES ($1, $2)
+		RETURNING id;
+	`
+
+	err := s.Pool.QueryRow(ctx, insertQuery, email, passwordHash).Scan(&generatedID)
+	if err != nil {
+		return 0, fmt.Errorf("transaction insert failed: %w", err)
+	}
+
+	return generatedID, nil
+}
+
+func (s *PostgresStore) GetUserByEmail(ctx context.Context, email string) (*model.User, error) {
+	query := `
+		SELECT id, email, password_hash, created_at
+		FROM users
+		WHERE email = $1;
+	`
+
+	user := &model.User{}
+	err := s.Pool.QueryRow(ctx, query, email).Scan(
+		&user.ID,
+		&user.Email,
+		&user.PasswordHash,
+		&user.CreatedAt,
+	)
+
+	if err != nil {
+		return nil, fmt.Errorf("error querying user by email: %w", err)
+	}
+
+	return user, nil
 }
