@@ -144,6 +144,9 @@ func (s *PostgresStore) GetUserByEmail(ctx context.Context, email string) (*mode
 	)
 
 	if err != nil {
+		if err == pgx.ErrNoRows {
+            return nil, nil // Return nil link and nil error for "not found"
+        }
 		return nil, fmt.Errorf("error querying user by email: %w", err)
 	}
 
