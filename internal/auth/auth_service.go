@@ -13,6 +13,7 @@ var (
     ErrInvalidEmail    = errors.New("invalid email format")
     ErrPasswordTooShort = errors.New("password must be at least 8 characters")
     ErrPasswordTooLong  = errors.New("password exceeds 72 characters")
+	ErrInvalidCredentials = errors.New("invalid email or password")
 )
 
 type AuthService struct {
@@ -36,7 +37,7 @@ func (as *AuthService) Register(ctx context.Context, email string, password stri
 	if err != nil {
 		return 0, ErrInvalidEmail
 	}
-	
+
 	var generatedID uint64
 
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
@@ -55,6 +56,19 @@ func (as *AuthService) Register(ctx context.Context, email string, password stri
 }
 
 func (as *AuthService) Login(ctx context.Context, email string, password string) (string, error) {
+	_, err := mail.ParseAddress(email)
+	if err != nil {
+		return "", ErrInvalidEmail
+	}
 
+	user, err := as.Store.GetUserByEmail(ctx, email)
+	if err != nil {
+		return "", ErrInvalidCredentials
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password))
+	if err != nil {
+		return "", ErrInvalidCredentials
+	}
 	return "", nil
 }
