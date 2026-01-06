@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"errors"
+	"net/mail"
 
 	"github.com/Unhyphenated/shrinks-backend/internal/storage"
 	"golang.org/x/crypto/bcrypt"
@@ -23,6 +24,19 @@ func NewAuthService(s storage.AuthStore) *AuthService {
 }
 
 func (as *AuthService) Register(ctx context.Context, email string, password string) (uint64, error) {
+	if (len(password) < 8) {
+		return 0, ErrPasswordTooShort
+	}
+
+	if (len(password) > 72) {
+		return 0, ErrPasswordTooLong
+	}
+
+	_, err := mail.ParseAddress(email) 
+	if err != nil {
+		return 0, ErrInvalidEmail
+	}
+	
 	var generatedID uint64
 
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
