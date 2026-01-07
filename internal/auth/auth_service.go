@@ -14,6 +14,7 @@ var (
     ErrPasswordTooShort = errors.New("password must be at least 8 characters")
     ErrPasswordTooLong  = errors.New("password exceeds 72 characters")
 	ErrInvalidCredentials = errors.New("invalid email or password")
+	ErrUserAlreadyExists = errors.New("user already exists")
 )
 
 type AuthService struct {
@@ -25,20 +26,18 @@ func NewAuthService(s storage.AuthStore) *AuthService {
 }
 
 func (as *AuthService) Register(ctx context.Context, email string, password string) (uint64, error) {
-	if (len(password) < 8) {
+	if len(password) < 8 {
 		return 0, ErrPasswordTooShort
 	}
 
-	if (len(password) > 72) {
+	if len(password) > 72 {
 		return 0, ErrPasswordTooLong
 	}
 
-	_, err := mail.ParseAddress(email) 
+	_, err := mail.ParseAddress(email)
 	if err != nil {
 		return 0, ErrInvalidEmail
 	}
-
-	var generatedID uint64
 
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 
@@ -46,9 +45,12 @@ func (as *AuthService) Register(ctx context.Context, email string, password stri
 		return 0, err
 	}
 
-	generatedID, err = as.Store.CreateUser(ctx, email, string (passwordHash))
+	generatedID, err := as.Store.CreateUser(ctx, email, string(passwordHash))
 
 	if err != nil {
+		if errors.Is(err, storage.ErrUniqueViolation) {
+			return 0, ErrUserAlreadyExists
+		}
 		return 0, err
 	}
 
@@ -62,7 +64,7 @@ func (as *AuthService) Login(ctx context.Context, email string, password string)
 	}
 
 	user, err := as.Store.GetUserByEmail(ctx, email)
-	if err != nil {
+	if err != nil || user == nil {
 		return "", ErrInvalidCredentials
 	}
 
