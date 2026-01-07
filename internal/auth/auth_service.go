@@ -72,5 +72,11 @@ func (as *AuthService) Login(ctx context.Context, email string, password string)
 	if err != nil {
 		return "", ErrInvalidCredentials
 	}
-	return "", nil
+
+	token, err := GenerateToken(user.ID, email)
+	if err != nil {
+		return "", err
+	}
+
+	return token, nil
 }

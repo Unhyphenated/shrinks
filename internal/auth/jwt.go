@@ -9,12 +9,12 @@ import (
 )
 
 type Claims struct {
-    UserID int
+    UserID uint64
     Email  string
     jwt.RegisteredClaims  // Built-in struct with exp, iat, iss, etc.
 }
 
-func GenerateToken(userID int, email string) (string, error) {
+func GenerateToken(userID uint64, email string) (string, error) {
 	secret := os.Getenv("JWT_SECRET")
 	if secret == "" {
 		return "", errors.New("JWT_SECRET is not set")
@@ -33,4 +33,25 @@ func GenerateToken(userID int, email string) (string, error) {
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString([]byte(secret))
+}
+
+func ValidateToken(token string) (*Claims, error) {
+	secret := os.Getenv("JWT_SECRET")
+	if secret == "" {
+		return nil, errors.New("JWT_SECRET is not set")
+	}
+
+	claims := &Claims{}
+	parsedToken, err := jwt.ParseWithClaims(token, claims, func(token *jwt.Token) (interface{}, error) {
+		return []byte(secret), nil
+	})
+	if err != nil {
+		return nil, errors.New("failed to parse token")
+	}
+
+	if !parsedToken.Valid {
+		return nil, errors.New("invalid token")
+	}
+
+	return claims, nil
 }
