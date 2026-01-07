@@ -2,12 +2,17 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/Unhyphenated/shrinks-backend/internal/encoding"
 	"github.com/Unhyphenated/shrinks-backend/internal/model"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+)
+
+var (
+	ErrUniqueViolation = errors.New("unique violation")
 )
 
 type LinkStore interface {
@@ -123,7 +128,14 @@ func (s *PostgresStore) CreateUser(ctx context.Context, email string, passwordHa
 
 	err := s.Pool.QueryRow(ctx, insertQuery, email, passwordHash).Scan(&generatedID)
 	if err != nil {
-		if err != pgx.ErrNoRows {
+		if err == pgx.ErrNoRows {
+			existingUser, lookupErr := s.GetUserByEmail(ctx, email)
+			if lookupErr != nil {
+				return 0, fmt.Errorf("error looking up user: %w", lookupErr)
+			}
+			if existingUser != nil {
+				return 0, ErrUniqueViolation
+			}
 			return 0, fmt.Errorf("error inserting user: %w", err)
 		}
 		return 0, fmt.Errorf("transaction insert failed: %w", err)
