@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/mail"
 
+	"github.com/Unhyphenated/shrinks-backend/internal/model"
 	"github.com/Unhyphenated/shrinks-backend/internal/storage"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -57,26 +58,29 @@ func (as *AuthService) Register(ctx context.Context, email string, password stri
 	return generatedID, nil
 }
 
-func (as *AuthService) Login(ctx context.Context, email string, password string) (string, error) {
+func (as *AuthService) Login(ctx context.Context, email string, password string) (model.AuthResponse, error) {
 	_, err := mail.ParseAddress(email)
 	if err != nil {
-		return "", ErrInvalidEmail
+		return model.AuthResponse{}, ErrInvalidEmail
 	}
 
 	user, err := as.Store.GetUserByEmail(ctx, email)
 	if err != nil || user == nil {
-		return "", ErrInvalidCredentials
+		return model.AuthResponse{}, ErrInvalidCredentials
 	}
 
 	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password))
 	if err != nil {
-		return "", ErrInvalidCredentials
+		return model.AuthResponse{}, ErrInvalidCredentials
 	}
 
 	token, err := GenerateToken(user.ID, email)
 	if err != nil {
-		return "", err
+		return model.AuthResponse{}, err
 	}
 
-	return token, nil
+	return model.AuthResponse{
+		Token: token,
+		User: *user,
+	}, nil
 }
