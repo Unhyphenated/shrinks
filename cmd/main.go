@@ -82,7 +82,7 @@ func handlerRegister(svc *auth.AuthService) http.HandlerFunc {
 			return
 		}
 
-		userID, err := svc.Register(r.Context(), req.Email, req.Password)
+		registerResp, err := svc.Register(r.Context(), req.Email, req.Password)
 		if err != nil {
 			switch {
 			case errors.Is(err, auth.ErrInvalidEmail):
@@ -100,17 +100,44 @@ func handlerRegister(svc *auth.AuthService) http.HandlerFunc {
 			return
 		}
 
-		resp := model.RegisterResponse{
-			UserID: userID,
-		}
-
-		util.WriteJSON(w, http.StatusCreated, resp)
+		util.WriteJSON(w, http.StatusCreated, registerResp)
 	}
 }
 
 func handlerLogin(svc *auth.AuthService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		var req model.LoginRequest
 
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			util.WriteError(w, http.StatusBadRequest, "Invalid request payload")
+			return
+		}
+
+		if req.Email == "" {
+			util.WriteError(w, http.StatusBadRequest, "Email is required")
+			return
+		}
+
+		if req.Password == "" {
+			util.WriteError(w, http.StatusBadRequest, "Password is required")
+			return
+		}
+
+		authResp, err := svc.Login(r.Context(), req.Email, req.Password)
+		if err != nil {
+			switch {
+			case errors.Is(err, auth.ErrInvalidEmail):
+				util.WriteError(w, http.StatusBadRequest, "Invalid email format")
+			case errors.Is(err, auth.ErrInvalidCredentials):
+				util.WriteError(w, http.StatusUnauthorized, "Invalid email or password")
+			default:
+				log.Printf("Login error: %v", err)
+				util.WriteError(w, http.StatusInternalServerError, "Failed to login")
+			}
+			return
+		}
+
+		util.WriteJSON(w, http.StatusOK, authResp)
 	}
 }
 
