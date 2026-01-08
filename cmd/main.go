@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -24,13 +25,13 @@ func main() {
 	redisURL := os.Getenv("REDIS_URL")
 
 	if dbURL == "" {
-        log.Fatal("DATABASE_URL environment variable is not set. Cannot connect to Postgres.") 
-    }
+		log.Fatal("DATABASE_URL environment variable is not set. Cannot connect to Postgres.")
+	}
 
 	store, err := storage.NewPostgresStore(dbURL)
 	if err != nil {
-        log.Fatalf("Failed to initialize database store: %v", err)
-    }
+		log.Fatalf("Failed to initialize database store: %v", err)
+	}
 
 	defer store.Close()
 
@@ -46,9 +47,8 @@ func main() {
 	// Simple HTTP server setup
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("POST /shorten",   handlerShorten(linkService))
+	mux.HandleFunc("POST /shorten", handlerShorten(linkService))
 	mux.HandleFunc("GET /{shortURL}", handlerRedirect(linkService))
-
 
 	mux.HandleFunc("POST /register", handlerRegister(authService))
 	mux.HandleFunc("POST /login", handlerLogin(authService))
@@ -65,7 +65,46 @@ func main() {
 
 func handlerRegister(svc *auth.AuthService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		var req model.RegisterRequest
 
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			util.WriteError(w, http.StatusBadRequest, "Invalid request payload")
+			return
+		}
+
+		if req.Email == "" {
+			util.WriteError(w, http.StatusBadRequest, "Email is required")
+			return
+		}
+
+		if req.Password == "" {
+			util.WriteError(w, http.StatusBadRequest, "Password is required")
+			return
+		}
+
+		userID, err := svc.Register(r.Context(), req.Email, req.Password)
+		if err != nil {
+			switch {
+			case errors.Is(err, auth.ErrInvalidEmail):
+				util.WriteError(w, http.StatusBadRequest, "Invalid email format")
+			case errors.Is(err, auth.ErrPasswordTooShort):
+				util.WriteError(w, http.StatusBadRequest, "Password must be at least 8 characters")
+			case errors.Is(err, auth.ErrPasswordTooLong):
+				util.WriteError(w, http.StatusBadRequest, "Password exceeds 72 characters")
+			case errors.Is(err, auth.ErrUserAlreadyExists):
+				util.WriteError(w, http.StatusConflict, "User already exists")
+			default:
+				log.Printf("Registration error: %v", err)
+				util.WriteError(w, http.StatusInternalServerError, "Failed to register user")
+			}
+			return
+		}
+
+		resp := model.RegisterResponse{
+			UserID: userID,
+		}
+
+		util.WriteJSON(w, http.StatusCreated, resp)
 	}
 }
 
@@ -80,25 +119,25 @@ func handlerShorten(svc *service.LinkService) http.HandlerFunc {
 		var req model.CreateLinkRequest
 
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			   util.WriteError(w, http.StatusBadRequest, "Invalid request payload")
+			util.WriteError(w, http.StatusBadRequest, "Invalid request payload")
 			return
 		}
 
 		if req.URL == "" {
-			   util.WriteError(w, http.StatusBadRequest, "URL is required")
+			util.WriteError(w, http.StatusBadRequest, "URL is required")
 			return
 		}
 
 		shortCode, err := svc.Shorten(r.Context(), req.URL)
 
 		if err != nil {
-			   util.WriteError(w, http.StatusInternalServerError, "Failed to shorten URL")
+			util.WriteError(w, http.StatusInternalServerError, "Failed to shorten URL")
 			return
 		}
 
 		resp := model.CreateLinkResponse{
-			ShortCode: shortCode, 
-			LongURL: req.URL,
+			ShortCode: shortCode,
+			LongURL:   req.URL,
 		}
 
 		util.WriteJSON(w, http.StatusCreated, resp)
@@ -119,7 +158,7 @@ func handlerRedirect(svc *service.LinkService) http.HandlerFunc {
 			util.WriteError(w, http.StatusNotFound, "Link not found")
 			return
 		}
-		
+
 		http.Redirect(w, r, longURL, http.StatusFound)
 	}
 }
