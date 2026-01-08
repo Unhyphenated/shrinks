@@ -26,36 +26,39 @@ func NewAuthService(s storage.AuthStore) *AuthService {
 	return &AuthService{Store: s}
 }
 
-func (as *AuthService) Register(ctx context.Context, email string, password string) (uint64, error) {
+func (as *AuthService) Register(ctx context.Context, email string, password string) (model.RegisterResponse, error) {
 	if len(password) < 8 {
-		return 0, ErrPasswordTooShort
+		return model.RegisterResponse{}, ErrPasswordTooShort
 	}
 
 	if len(password) > 72 {
-		return 0, ErrPasswordTooLong
+		return model.RegisterResponse{}, ErrPasswordTooLong
 	}
 
 	_, err := mail.ParseAddress(email)
 	if err != nil {
-		return 0, ErrInvalidEmail
+		return model.RegisterResponse{}, ErrInvalidEmail
 	}
 
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 
 	if err != nil {
-		return 0, err
+		return model.RegisterResponse{}, err
 	}
 
-	generatedID, err := as.Store.CreateUser(ctx, email, string(passwordHash))
+	userID, err := as.Store.CreateUser(ctx, email, string(passwordHash))
 
 	if err != nil {
 		if errors.Is(err, storage.ErrUniqueViolation) {
-			return 0, ErrUserAlreadyExists
+			return model.RegisterResponse{}, ErrUserAlreadyExists
 		}
-		return 0, err
+		return model.RegisterResponse{}, err
 	}
 
-	return generatedID, nil
+	
+	return model.RegisterResponse{
+		UserID: userID,
+	}, nil
 }
 
 func (as *AuthService) Login(ctx context.Context, email string, password string) (model.AuthResponse, error) {
