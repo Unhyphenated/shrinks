@@ -69,7 +69,7 @@ func TestHandlerShorten_Success(t *testing.T) {
 
 	reqBody := model.CreateLinkRequest{URL: expectedLongURL}
 	jsonBody, _ := json.Marshal(reqBody)
-	req := httptest.NewRequest(http.MethodPost, "/shorten", bytes.NewReader(jsonBody))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/shorten", bytes.NewReader(jsonBody))
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
 
@@ -111,7 +111,7 @@ func TestHandlerShorten_InternalServerError(t *testing.T) {
 
 	reqBody := model.CreateLinkRequest{URL: testURL}
 	jsonBody, _ := json.Marshal(reqBody)
-	req := httptest.NewRequest(http.MethodPost, "/shorten", bytes.NewReader(jsonBody))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/shorten", bytes.NewReader(jsonBody))
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
 
@@ -134,7 +134,7 @@ func TestHandlerShorten_BadRequest(t *testing.T) {
 	handler := handlerShorten(svc)
 
 	invalidBody := `{"not_a_url_field": "test"}`
-	req := httptest.NewRequest(http.MethodPost, "/shorten", bytes.NewReader([]byte(invalidBody)))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/shorten", bytes.NewReader([]byte(invalidBody)))
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
 

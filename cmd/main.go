@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/Unhyphenated/shrinks-backend/internal/auth"
 	"github.com/Unhyphenated/shrinks-backend/internal/cache"
@@ -47,11 +48,11 @@ func main() {
 	// Simple HTTP server setup
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("POST /shorten", handlerShorten(linkService))
-	mux.HandleFunc("GET /{shortURL}", handlerRedirect(linkService))
+	mux.HandleFunc("POST /api/v1/shorten", handlerShorten(linkService))
+	mux.HandleFunc("GET /api/v1/{shortCode}", handlerRedirect(linkService))
 
-	mux.HandleFunc("POST /register", handlerRegister(authService))
-	mux.HandleFunc("POST /login", handlerLogin(authService))
+	mux.HandleFunc("POST /api/v1/register", handlerRegister(authService))
+	mux.HandleFunc("POST /api/v1/login", handlerLogin(authService))
 
 	fmt.Println("Server starting on :8080")
 
@@ -173,14 +174,15 @@ func handlerShorten(svc *service.LinkService) http.HandlerFunc {
 
 func handlerRedirect(svc *service.LinkService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		shortURL := r.URL.Path[1:]
+		path := r.URL.Path
+		shortCode := strings.TrimPrefix(path, "/api/v1")
 
-		if shortURL == "" {
+		if shortCode == "" {
 			util.WriteError(w, http.StatusBadRequest, "Short URL code is required")
 			return
 		}
 
-		longURL, err := svc.Redirect(r.Context(), shortURL)
+		longURL, err := svc.Redirect(r.Context(), shortCode)
 		if err != nil {
 			util.WriteError(w, http.StatusNotFound, "Link not found")
 			return
