@@ -48,7 +48,7 @@ func main() {
 	// Simple HTTP server setup
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("POST /api/v1/shorten", handlerShorten(linkService))
+	mux.Handle("POST /api/v1/shorten", auth.OptionalAuth(handlerShorten(linkService)))
 	mux.HandleFunc("GET /api/v1/{shortCode}", handlerRedirect(linkService))
 
 	mux.HandleFunc("POST /api/v1/register", handlerRegister(authService))
