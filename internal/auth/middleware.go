@@ -50,3 +50,20 @@ func RequireAuth(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
+
+func OptionalAuth(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		tokenString, err := extractToken(r)
+		if err == nil {
+			// Token exists, try to validate it
+			claims, err := ValidateToken(tokenString)
+			if err == nil {
+				// Valid token, add to context
+				ctx := context.WithValue(r.Context(), claimsContextKey, claims)
+				r = r.WithContext(ctx)
+			}
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
