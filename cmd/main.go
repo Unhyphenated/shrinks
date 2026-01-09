@@ -48,8 +48,8 @@ func main() {
 	// Simple HTTP server setup
 	mux := http.NewServeMux()
 
-	mux.Handle("POST /api/v1/shorten", auth.OptionalAuth(handlerShorten(linkService)))
-	mux.HandleFunc("GET /api/v1/{shortCode}", handlerRedirect(linkService))
+	mux.Handle("POST /api/v1/links/shorten", auth.OptionalAuth(handlerShorten(linkService)))
+	mux.HandleFunc("GET /api/v1/links/{shortCode}", handlerRedirect(linkService))
 
 	mux.HandleFunc("POST /api/v1/register", handlerRegister(authService))
 	mux.HandleFunc("POST /api/v1/login", handlerLogin(authService))
@@ -175,7 +175,7 @@ func handlerShorten(svc *service.LinkService) http.HandlerFunc {
 func handlerRedirect(svc *service.LinkService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
-		shortCode := strings.TrimPrefix(path, "/api/v1/")
+		shortCode := strings.TrimPrefix(path, "/api/v1/links")
 
 		if shortCode == "" {
 			util.WriteError(w, http.StatusBadRequest, "Short URL code is required")
