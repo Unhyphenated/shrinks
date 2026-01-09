@@ -4,8 +4,18 @@ import (
 	"strings"
 	"errors"
 	"net/http"
+	"context"
 
 )
+
+type contextKey string
+
+const claimsContextKey contextKey = "claims"
+
+func GetClaimsFromContext(ctx context.Context) (*Claims, bool) {
+	claims, ok := ctx.Value(claimsContextKey).(*Claims)
+	return claims, ok
+}
 
 func extractToken(r *http.Request) (string, error) {
 	authHeader := r.Header.Get("Authorization")
@@ -21,4 +31,22 @@ func extractToken(r *http.Request) (string, error) {
 	token := parts[1]
 
 	return token, nil
+}
+
+func RequireAuth(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		tokenString, err := extractToken(r)
+		if err != nil {
+			http.Error(w, "Unathorized: " + err.Error(), http.StatusUnauthorized)
+		}
+
+		claims, err := ValidateToken(tokenString)
+		if err != nil {
+			http.Error(w, "Unauthorized: Invalid token", http.StatusUnauthorized)
+			return
+		}
+
+		ctx := context.WithValue(r.Context(), claimsContextKey, claims)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
 }
