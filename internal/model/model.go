@@ -32,6 +32,7 @@ type AuthResponse struct {
 // Link Models
 type Link struct {
 	ID uint64 `db:"id"`
+	UserID *uint64 `db:"user_id"`
 	ShortCode string `db:"short_code"`
 	LongURL string `db:"long_url"`
 	CreatedAt time.Time `db:"created_at"`

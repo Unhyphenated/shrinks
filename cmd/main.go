@@ -156,7 +156,13 @@ func handlerShorten(svc *service.LinkService) http.HandlerFunc {
 			return
 		}
 
-		shortCode, err := svc.Shorten(r.Context(), req.URL)
+		var userID *uint64 
+		claims, ok := auth.GetClaimsFromContext(r.Context())
+		if ok {
+			userID = &claims.UserID
+		}
+
+		shortCode, err := svc.Shorten(r.Context(), req.URL, userID)
 
 		if err != nil {
 			util.WriteError(w, http.StatusInternalServerError, "Failed to shorten URL")
