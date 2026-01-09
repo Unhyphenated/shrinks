@@ -17,7 +17,7 @@ import (
 
 
 type MockConfig struct {
-    SaveLinkFn func(ctx context.Context, longURL string) (string, error)
+    SaveLinkFn func(ctx context.Context, longURL string, userID *uint64) (string, error)
 }
 
 func newMockStore(cfg MockConfig) *service.MockStore {
@@ -53,7 +53,7 @@ func TestHandlerShorten_Success(t *testing.T) {
     expectedShortURL := encoding.Encode(mockID) 
 
 	cfg := MockConfig{
-        SaveLinkFn: func(ctx context.Context, longURL string) (string, error) {
+        SaveLinkFn: func(ctx context.Context, longURL string, userID *uint64) (string, error) {
             if longURL != expectedLongURL {
                 t.Fatalf("Mock received wrong URL: got %s", longURL)
             }
@@ -100,7 +100,7 @@ func TestHandlerShorten_InternalServerError(t *testing.T) {
     
     mockDBError := errors.New("simulated DB connection failed")
 	cfg := MockConfig{
-        SaveLinkFn: func(ctx context.Context, longURL string) (string, error) {
+        SaveLinkFn: func(ctx context.Context, longURL string, userID *uint64) (string, error) {
             return "", mockDBError 
         },
     }
@@ -128,7 +128,12 @@ func TestHandlerShorten_InternalServerError(t *testing.T) {
 // =================================================================
 
 func TestHandlerShorten_BadRequest(t *testing.T) {
-    mockStore := newMockStore(MockConfig{}) 
+	cfg := MockConfig{
+		SaveLinkFn: func(ctx context.Context, longURL string, userID *uint64) (string, error) {
+			return "", nil // Won't be called due to validation error
+		},
+	}
+    mockStore := newMockStore(cfg) 
 	mockCache := newMockCache()
 	svc := service.NewLinkService(mockStore, mockCache)
 	handler := handlerShorten(svc)

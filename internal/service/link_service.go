@@ -19,11 +19,11 @@ func NewLinkService(s storage.LinkStore, c cache.Cache) *LinkService {
 	return &LinkService{Store: s, Cache: c}
 }
 
-func (ls *LinkService) Shorten(ctx context.Context, longURL string) (string, error) {
+func (ls *LinkService) Shorten(ctx context.Context, longURL string, userID *uint64) (string, error) {
 	// Rate Limiting
 	// Input Sanitation
 
-	shortCode, err := ls.Store.SaveLink(ctx, longURL)
+	shortCode, err := ls.Store.SaveLink(ctx, longURL, userID)
 	if err != nil {
 		return "", fmt.Errorf("failed to save link: %w", err)
 	}

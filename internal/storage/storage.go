@@ -16,7 +16,7 @@ var (
 )
 
 type LinkStore interface {
-	SaveLink(ctx context.Context, longURL string) (string, error)
+	SaveLink(ctx context.Context, longURL string, userID *uint64) (string, error)
     GetLinkByCode(ctx context.Context, code string) (*model.Link, error)
     Close()
 }
@@ -55,7 +55,7 @@ func (s *PostgresStore) Close() {
     s.Pool.Close()
 }
 
-func (s *PostgresStore) SaveLink(ctx context.Context, longURL string) (string, error) {
+func (s *PostgresStore) SaveLink(ctx context.Context, longURL string, userID *uint64) (string, error) {
 	tx, err := s.Pool.Begin(ctx)
 	if err != nil {
 		return "", fmt.Errorf("failed to start transaction: %w", err)
@@ -64,23 +64,23 @@ func (s *PostgresStore) SaveLink(ctx context.Context, longURL string) (string, e
 
 	var generatedID uint64
 	insertQuery := `
-		INSERT INTO links (long_url, short_code) 
-		VALUES ($1, '')
+		INSERT INTO links (long_url, short_code, user_id) 
+		VALUES ($1, '', $2)
 		RETURNING id;
 	`
-	err = tx.QueryRow(ctx, insertQuery, longURL).Scan(&generatedID)
+	err = tx.QueryRow(ctx, insertQuery, longURL, userID).Scan(&generatedID)
 	if err != nil {
 		return "", fmt.Errorf("transaction insert failed: %w", err)
 	}
 
-	shortURL := encoding.Encode(generatedID) 
+	shortCode := encoding.Encode(generatedID) 
 
 	updateQuery := `
 		UPDATE links 
 		SET short_code = $1 
 		WHERE id = $2;
 	`
-	_, err = tx.Exec(ctx, updateQuery, shortURL, generatedID)
+	_, err = tx.Exec(ctx, updateQuery, shortCode, generatedID)
 	if err != nil {
 		return "", fmt.Errorf("transaction update failed: %w", err)
 	}
@@ -89,18 +89,19 @@ func (s *PostgresStore) SaveLink(ctx context.Context, longURL string) (string, e
 		return "", fmt.Errorf("transaction commit failed: %w", err)
 	}
 
-	return shortURL, nil
+	return shortCode, nil
 }
 
-func (s *PostgresStore) GetLinkByCode(ctx context.Context, shortURL string) (*model.Link, error) {
+func (s *PostgresStore) GetLinkByCode(ctx context.Context, shortCode string) (*model.Link, error) {
 	query := `
-		SELECT id, long_url, short_code, created_at
+		SELECT id, user_id, long_url, short_code, created_at
 		FROM links 
 		WHERE short_code = $1;
 	`
 	link := &model.Link{}
-	err := s.Pool.QueryRow(ctx, query, shortURL).Scan(
+	err := s.Pool.QueryRow(ctx, query, shortCode).Scan(
 		&link.ID,
+		&link.UserID,
 		&link.LongURL,
 		&link.ShortCode,
 		&link.CreatedAt,
