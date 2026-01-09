@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/Unhyphenated/shrinks-backend/internal/encoding"
@@ -10,11 +11,20 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type Store interface {
+var (
+	ErrUniqueViolation = errors.New("unique violation")
+)
+
+type LinkStore interface {
 	SaveLink(ctx context.Context, longURL string) (string, error)
     GetLinkByCode(ctx context.Context, code string) (*model.Link, error)
-	UpdateClickCount(ctx context.Context, ID uint64) error
     Close()
+}
+
+type AuthStore interface {
+	CreateUser(ctx context.Context, email string, passwordHash string) (uint64, error)
+	GetUserByEmail(ctx context.Context, email string) (*model.User, error)
+	Close()
 }
 
 type PostgresStore struct {
@@ -54,7 +64,7 @@ func (s *PostgresStore) SaveLink(ctx context.Context, longURL string) (string, e
 
 	var generatedID uint64
 	insertQuery := `
-		INSERT INTO links (long_url, short_url) 
+		INSERT INTO links (long_url, short_code) 
 		VALUES ($1, '')
 		RETURNING id;
 	`
@@ -67,7 +77,7 @@ func (s *PostgresStore) SaveLink(ctx context.Context, longURL string) (string, e
 
 	updateQuery := `
 		UPDATE links 
-		SET short_url = $1 
+		SET short_code = $1 
 		WHERE id = $2;
 	`
 	_, err = tx.Exec(ctx, updateQuery, shortURL, generatedID)
@@ -84,17 +94,16 @@ func (s *PostgresStore) SaveLink(ctx context.Context, longURL string) (string, e
 
 func (s *PostgresStore) GetLinkByCode(ctx context.Context, shortURL string) (*model.Link, error) {
 	query := `
-		SELECT id, long_url, short_url, created_at, clicks
+		SELECT id, long_url, short_code, created_at
 		FROM links 
-		WHERE short_url = $1;
+		WHERE short_code = $1;
 	`
 	link := &model.Link{}
 	err := s.Pool.QueryRow(ctx, query, shortURL).Scan(
 		&link.ID,
 		&link.LongURL,
-		&link.ShortURL,
+		&link.ShortCode,
 		&link.CreatedAt,
-		&link.Clicks,
 	)
 
 	if err != nil {
@@ -108,25 +117,54 @@ func (s *PostgresStore) GetLinkByCode(ctx context.Context, shortURL string) (*mo
     return link, nil
 }
 
-func (s *PostgresStore) UpdateClickCount(ctx context.Context, ID uint64) error {
-	tx, err := s.Pool.Begin(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to start transaction: %w", err)
-	}
-	defer tx.Rollback(ctx)
-
-	updateQuery := `
-		UPDATE links 
-		SET clicks = clicks + 1 
-		WHERE id = $1;
+func (s *PostgresStore) CreateUser(ctx context.Context, email string, passwordHash string) (uint64, error) {
+	var generatedID uint64
+	insertQuery := `
+		INSERT INTO users (email, password_hash)
+		VALUES ($1, $2)
+		ON CONFLICT (email) DO NOTHING
+		RETURNING id;
 	`
-	_, err = tx.Exec(ctx, updateQuery, ID)
+
+	err := s.Pool.QueryRow(ctx, insertQuery, email, passwordHash).Scan(&generatedID)
 	if err != nil {
-		return fmt.Errorf("failed to update click count: %w", err)
+		if err == pgx.ErrNoRows {
+			existingUser, lookupErr := s.GetUserByEmail(ctx, email)
+			if lookupErr != nil {
+				return 0, fmt.Errorf("error looking up user: %w", lookupErr)
+			}
+			if existingUser != nil {
+				return 0, ErrUniqueViolation
+			}
+			return 0, fmt.Errorf("error inserting user: %w", err)
+		}
+		return 0, fmt.Errorf("transaction insert failed: %w", err)
 	}
 
-	if err := tx.Commit(ctx); err != nil {
-		return fmt.Errorf("failed to commit transaction: %w", err)
+	return generatedID, nil
+}
+
+func (s *PostgresStore) GetUserByEmail(ctx context.Context, email string) (*model.User, error) {
+	query := `
+		SELECT id, email, password_hash, created_at
+		FROM users
+		WHERE email = $1;
+	`
+
+	user := &model.User{}
+	err := s.Pool.QueryRow(ctx, query, email).Scan(
+		&user.ID,
+		&user.Email,
+		&user.PasswordHash,
+		&user.CreatedAt,
+	)
+
+	if err != nil {
+		if err == pgx.ErrNoRows {
+            return nil, nil // Return nil link and nil error for "not found"
+        }
+		return nil, fmt.Errorf("error querying user by email: %w", err)
 	}
-	return nil
+
+	return user, nil
 }

@@ -23,12 +23,10 @@ type MockConfig struct {
 func newMockStore(cfg MockConfig) *service.MockStore {
     // Default implementation for methods not being tested
     defaultGetFn := func(ctx context.Context, shortURL string) (*model.Link, error) { return nil, nil }
-    defaultUpdateFn := func(ctx context.Context, linkID uint64) error { return nil }
 
     return &service.MockStore{
         SaveLinkFn:         cfg.SaveLinkFn,
         GetLinkByCodeFn:    defaultGetFn,
-        UpdateClickCountFn: defaultUpdateFn,
         CloseFn:            func() {},
     }
 }
@@ -71,7 +69,7 @@ func TestHandlerShorten_Success(t *testing.T) {
 
 	reqBody := model.CreateLinkRequest{URL: expectedLongURL}
 	jsonBody, _ := json.Marshal(reqBody)
-	req := httptest.NewRequest(http.MethodPost, "/shorten", bytes.NewReader(jsonBody))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/shorten", bytes.NewReader(jsonBody))
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
 
@@ -86,8 +84,8 @@ func TestHandlerShorten_Success(t *testing.T) {
 		t.Fatalf("Failed to decode response: %v", err)
 	}
 	
-	if resp.ShortURL != expectedShortURL {
-		t.Errorf("Short code mismatch: Got %s, want %s", resp.ShortURL, expectedShortURL)
+	if resp.ShortCode != expectedShortURL {
+		t.Errorf("Short code mismatch: Got %s, want %s", resp.ShortCode, expectedShortURL)
 	}
 }
 
@@ -113,7 +111,7 @@ func TestHandlerShorten_InternalServerError(t *testing.T) {
 
 	reqBody := model.CreateLinkRequest{URL: testURL}
 	jsonBody, _ := json.Marshal(reqBody)
-	req := httptest.NewRequest(http.MethodPost, "/shorten", bytes.NewReader(jsonBody))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/shorten", bytes.NewReader(jsonBody))
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
 
@@ -136,7 +134,7 @@ func TestHandlerShorten_BadRequest(t *testing.T) {
 	handler := handlerShorten(svc)
 
 	invalidBody := `{"not_a_url_field": "test"}`
-	req := httptest.NewRequest(http.MethodPost, "/shorten", bytes.NewReader([]byte(invalidBody)))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/shorten", bytes.NewReader([]byte(invalidBody)))
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
 

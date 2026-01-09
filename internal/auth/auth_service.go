@@ -1,0 +1,89 @@
+package auth
+
+import (
+	"context"
+	"errors"
+	"net/mail"
+
+	"github.com/Unhyphenated/shrinks-backend/internal/model"
+	"github.com/Unhyphenated/shrinks-backend/internal/storage"
+	"golang.org/x/crypto/bcrypt"
+)
+
+var (
+    ErrInvalidEmail    = errors.New("invalid email format")
+    ErrPasswordTooShort = errors.New("password must be at least 8 characters")
+    ErrPasswordTooLong  = errors.New("password exceeds 72 characters")
+	ErrInvalidCredentials = errors.New("invalid email or password")
+	ErrUserAlreadyExists = errors.New("user already exists")
+)
+
+type AuthService struct {
+	Store storage.AuthStore
+}
+
+func NewAuthService(s storage.AuthStore) *AuthService {
+	return &AuthService{Store: s}
+}
+
+func (as *AuthService) Register(ctx context.Context, email string, password string) (model.RegisterResponse, error) {
+	if len(password) < 8 {
+		return model.RegisterResponse{}, ErrPasswordTooShort
+	}
+
+	if len(password) > 72 {
+		return model.RegisterResponse{}, ErrPasswordTooLong
+	}
+
+	_, err := mail.ParseAddress(email)
+	if err != nil {
+		return model.RegisterResponse{}, ErrInvalidEmail
+	}
+
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+
+	if err != nil {
+		return model.RegisterResponse{}, err
+	}
+
+	userID, err := as.Store.CreateUser(ctx, email, string(passwordHash))
+
+	if err != nil {
+		if errors.Is(err, storage.ErrUniqueViolation) {
+			return model.RegisterResponse{}, ErrUserAlreadyExists
+		}
+		return model.RegisterResponse{}, err
+	}
+
+	
+	return model.RegisterResponse{
+		UserID: userID,
+	}, nil
+}
+
+func (as *AuthService) Login(ctx context.Context, email string, password string) (model.AuthResponse, error) {
+	_, err := mail.ParseAddress(email)
+	if err != nil {
+		return model.AuthResponse{}, ErrInvalidEmail
+	}
+
+	user, err := as.Store.GetUserByEmail(ctx, email)
+	if err != nil || user == nil {
+		return model.AuthResponse{}, ErrInvalidCredentials
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password))
+	if err != nil {
+		return model.AuthResponse{}, ErrInvalidCredentials
+	}
+
+	token, err := GenerateToken(user.ID, email)
+	if err != nil {
+		return model.AuthResponse{}, err
+	}
+
+	return model.AuthResponse{
+		Token: token,
+		User: *user,
+	}, nil
+}
