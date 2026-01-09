@@ -175,7 +175,7 @@ func handlerShorten(svc *service.LinkService) http.HandlerFunc {
 func handlerRedirect(svc *service.LinkService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
-		shortCode := strings.TrimPrefix(path, "/api/v1")
+		shortCode := strings.TrimPrefix(path, "/api/v1/")
 
 		if shortCode == "" {
 			util.WriteError(w, http.StatusBadRequest, "Short URL code is required")
