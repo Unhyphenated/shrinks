@@ -48,3 +48,17 @@ func GetIP(r *http.Request) string {
     // X-Forwarded-For can be a list (client, proxy1, proxy2). We want the first one.
     return strings.Split(ip, ",")[0]
 }
+
+func AnonymizeIP(ip string) string {
+    parsedIP := net.ParseIP(ip)
+    if parsedIP == nil {
+        return "0.0.0.0"
+    }
+
+    if ipv4 := parsedIP.To4(); ipv4 != nil {
+        ipv4[3] = 0
+        return ipv4.String()
+    }
+
+    return ip
+}
