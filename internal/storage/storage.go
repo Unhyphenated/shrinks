@@ -216,3 +216,31 @@ func (s *PostgresStore) GetRefreshToken(ctx context.Context, tokenHash string) (
 	}
 	return token, nil
 }
+
+func (s *PostgresStore) DeleteRefreshToken(ctx context.Context, tokenHash string) error {
+	query := `
+		DELETE FROM refresh_tokens
+		WHERE token_hash = $1
+	`
+
+	_, err := s.Pool.Exec(ctx, query, tokenHash)
+	if err != nil {
+		return fmt.Errorf("failed to delete refresh token: %w", err)
+	}
+
+	return nil
+}
+
+func (s *PostgresStore) DeleteUserRefreshTokens(ctx context.Context, userID uint64) error {
+	query := `
+		DELETE FROM refresh_tokens
+		WHERE user_id = $1
+	`
+
+	_, err := s.Pool.Exec(ctx, query, userID)
+	if err != nil {
+		return fmt.Errorf("failed to delete user refresh tokens: %w", err)
+	}
+
+	return nil
+}
