@@ -191,3 +191,28 @@ func (s *PostgresStore) CreateRefreshToken(ctx context.Context, userID *uint64, 
 
 	return nil
 }
+
+func (s *PostgresStore) GetRefreshToken(ctx context.Context, tokenHash string) (*model.RefreshToken, error) {
+	query := `
+		SELECT id, user_id, token_hash, expires_at, created_at
+		FROM refresh_tokens
+		WHERE token_hash = $1
+	`
+	token := &model.RefreshToken{}
+
+	err := s.Pool.QueryRow(ctx, query, tokenHash).Scan(
+		&token.ID,
+        &token.UserID,
+        &token.TokenHash,
+        &token.ExpiresAt,
+        &token.CreatedAt,
+	)
+
+	if err != nil {
+		if err == pgx.ErrNoRows {
+            return nil, nil // Not found
+        }
+		return nil, fmt.Errorf("Error querying refresh token: %w", err)
+	}
+	return token, nil
+}
