@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/Unhyphenated/shrinks-backend/internal/encoding"
 	"github.com/Unhyphenated/shrinks-backend/internal/model"
@@ -24,6 +25,13 @@ type LinkStore interface {
 type AuthStore interface {
 	CreateUser(ctx context.Context, email string, passwordHash string) (uint64, error)
 	GetUserByEmail(ctx context.Context, email string) (*model.User, error)
+
+	// Refresh token methods
+	CreateRefreshToken(ctx context.Context, userID *uint64, tokenHash string, expiresAt time.Time)
+	GetRefreshToken(ctx context.Context, tokenHash string)
+	DeleteRefreshToken(ctx context.Context, tokenHash string)
+	DeleteUserRefreshTokens(ctx context.Context, userID *uint64)
+
 	Close()
 }
 
@@ -168,4 +176,18 @@ func (s *PostgresStore) GetUserByEmail(ctx context.Context, email string) (*mode
 	}
 
 	return user, nil
+}
+
+func (s *PostgresStore) CreateRefreshToken(ctx context.Context, userID *uint64, tokenHash string, expiresAt time.Time) error {
+	query := `
+		INSERT INTO refresh_tokens (user_id, token_hash, expires_at)
+		VALUES ($1, $2, $3)
+	`
+
+	_, err := s.Pool.Exec(ctx, query, userID, tokenHash, expiresAt)
+	if err != nil {
+		return fmt.Errorf("Failed to create refresh token: %w", err)
+	}
+
+	return nil
 }
