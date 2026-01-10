@@ -17,6 +17,8 @@ var (
     ErrPasswordTooLong  = errors.New("password exceeds 72 characters")
 	ErrInvalidCredentials = errors.New("invalid email or password")
 	ErrUserAlreadyExists = errors.New("user already exists")
+	ErrInvalidRefreshToken = errors.New("invalid refresh token")
+    ErrRefreshTokenExpired = errors.New("refresh token has expired")
 )
 
 type AuthService struct {
@@ -103,3 +105,36 @@ func (as *AuthService) Login(ctx context.Context, email string, password string)
 		User: *user,
 	}, nil
 }
+
+func (as *AuthService) RefreshAccessToken(ctx context.Context, refreshToken string) (string, error) {
+	tokenHash := HashRefreshToken(refreshToken)
+
+	storedToken, err := as.Store.GetRefreshToken(ctx, tokenHash)
+	if err != nil {
+		return "", err
+	}
+
+	if storedToken == nil {
+		return "", ErrInvalidRefreshToken
+	}
+
+	if time.Now().After(storedToken.ExpiresAt) {
+		return "", ErrRefreshTokenExpired
+	}
+
+	user, err := as.Store.GetUserByID(ctx, storedToken.UserID)
+	if err != nil {
+		return "", err
+	}
+
+	if user == nil {
+		return "", ErrInvalidRefreshToken
+	}
+
+	accessToken, err := GenerateToken(user.ID, user.Email)
+	if err != nil {
+		return "", err
+	}
+
+	return accessToken, nil
+}	
