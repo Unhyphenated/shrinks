@@ -25,6 +25,7 @@ type LinkStore interface {
 type AuthStore interface {
 	CreateUser(ctx context.Context, email string, passwordHash string) (uint64, error)
 	GetUserByEmail(ctx context.Context, email string) (*model.User, error)
+	GetUserByID(ctx context.Context, id uint64) (*model.User, error)
 
 	// Refresh token methods
 	CreateRefreshToken(ctx context.Context, userID uint64, tokenHash string, expiresAt time.Time) error
@@ -177,6 +178,32 @@ func (s *PostgresStore) GetUserByEmail(ctx context.Context, email string) (*mode
 
 	return user, nil
 }
+
+func (s *PostgresStore) GetUserByID(ctx context.Context, id uint64) (*model.User, error) {
+	query := `
+		SELECT id, email, password_hash, created_at
+		FROM users
+		WHERE id = $1;
+	`
+
+	user := &model.User{}
+	err := s.Pool.QueryRow(ctx, query, id).Scan(
+		&user.ID,
+		&user.Email,
+		&user.PasswordHash,
+		&user.CreatedAt,
+	)
+
+	if err != nil {
+		if err == pgx.ErrNoRows {
+            return nil, nil // Return nil link and nil error for "not found"
+        }
+		return nil, fmt.Errorf("error querying user by id: %w", err)
+	}
+
+	return user, nil
+}
+
 
 func (s *PostgresStore) CreateRefreshToken(ctx context.Context, userID uint64, tokenHash string, expiresAt time.Time) error {
 	query := `
