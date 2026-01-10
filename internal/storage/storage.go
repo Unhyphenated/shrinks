@@ -27,10 +27,10 @@ type AuthStore interface {
 	GetUserByEmail(ctx context.Context, email string) (*model.User, error)
 
 	// Refresh token methods
-	CreateRefreshToken(ctx context.Context, userID *uint64, tokenHash string, expiresAt time.Time)
-	GetRefreshToken(ctx context.Context, tokenHash string)
-	DeleteRefreshToken(ctx context.Context, tokenHash string)
-	DeleteUserRefreshTokens(ctx context.Context, userID *uint64)
+	CreateRefreshToken(ctx context.Context, userID uint64, tokenHash string, expiresAt time.Time) error
+	GetRefreshToken(ctx context.Context, tokenHash string) (*model.RefreshToken, error)
+	DeleteRefreshToken(ctx context.Context, tokenHash string) error
+	DeleteUserRefreshTokens(ctx context.Context, userID uint64) error
 
 	Close()
 }
@@ -178,7 +178,7 @@ func (s *PostgresStore) GetUserByEmail(ctx context.Context, email string) (*mode
 	return user, nil
 }
 
-func (s *PostgresStore) CreateRefreshToken(ctx context.Context, userID *uint64, tokenHash string, expiresAt time.Time) error {
+func (s *PostgresStore) CreateRefreshToken(ctx context.Context, userID uint64, tokenHash string, expiresAt time.Time) error {
 	query := `
 		INSERT INTO refresh_tokens (user_id, token_hash, expires_at)
 		VALUES ($1, $2, $3)
