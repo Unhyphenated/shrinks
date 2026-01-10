@@ -106,35 +106,37 @@ func (as *AuthService) Login(ctx context.Context, email string, password string)
 	}, nil
 }
 
-func (as *AuthService) RefreshAccessToken(ctx context.Context, refreshToken string) (string, error) {
+func (as *AuthService) RefreshAccessToken(ctx context.Context, refreshToken string) (model.RefreshTokenResponse, error) {
 	tokenHash := HashRefreshToken(refreshToken)
 
 	storedToken, err := as.Store.GetRefreshToken(ctx, tokenHash)
 	if err != nil {
-		return "", err
+		return model.RefreshTokenResponse{}, err
 	}
 
 	if storedToken == nil {
-		return "", ErrInvalidRefreshToken
+		return model.RefreshTokenResponse{}, ErrInvalidRefreshToken
 	}
 
 	if time.Now().After(storedToken.ExpiresAt) {
-		return "", ErrRefreshTokenExpired
+		return model.RefreshTokenResponse{}, ErrRefreshTokenExpired
 	}
 
 	user, err := as.Store.GetUserByID(ctx, storedToken.UserID)
 	if err != nil {
-		return "", err
+		return model.RefreshTokenResponse{}, err
 	}
 
 	if user == nil {
-		return "", ErrInvalidRefreshToken
+		return model.RefreshTokenResponse{}, ErrInvalidRefreshToken
 	}
 
 	accessToken, err := GenerateToken(user.ID, user.Email)
 	if err != nil {
-		return "", err
+		return model.RefreshTokenResponse{}, err
 	}
 
-	return accessToken, nil
+	return model.RefreshTokenResponse{
+		AccessToken: accessToken,
+	}, nil
 }	
