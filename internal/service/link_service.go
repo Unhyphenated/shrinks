@@ -6,13 +6,16 @@ import (
 	"log"
 	"time"
 
+	"github.com/Unhyphenated/shrinks-backend/internal/analytics"
 	"github.com/Unhyphenated/shrinks-backend/internal/cache"
+	"github.com/Unhyphenated/shrinks-backend/internal/model"
 	"github.com/Unhyphenated/shrinks-backend/internal/storage"
 )
 
 type LinkService struct {
 	Store storage.LinkStore // The Store interface is the dependency
 	Cache cache.Cache
+	AnalyticsService analytics.AnalyticsProvider
 }
 
 func NewLinkService(s storage.LinkStore, c cache.Cache) *LinkService {
@@ -30,7 +33,7 @@ func (ls *LinkService) Shorten(ctx context.Context, longURL string, userID *uint
 	return shortCode, nil
 }
 
-func (ls *LinkService) Redirect(ctx context.Context, shortCode string) (string, error) {
+func (ls *LinkService) Redirect(ctx context.Context, shortCode string, event *model.AnalyticsEvent) (string, error) {
 	// Check if link is in cache
 	longURL, err := ls.Cache.Get(ctx, shortCode)
 	if err != nil {
@@ -57,6 +60,15 @@ func (ls *LinkService) Redirect(ctx context.Context, shortCode string) (string, 
 			}
 		}()
 	}
+
+	event.LinkID = link.ID
+    event.ClickedAt = time.Now()
+
+	go func() {
+		if err := ls.AnalyticsService.RecordEvent(context.Background(), event); err != nil {
+			log.Printf("Failed to record analytics event: %v", err)
+		}
+	}()
 
 	return link.LongURL, nil
 }
