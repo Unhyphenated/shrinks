@@ -165,3 +165,65 @@ func TestJWT_RoundTrip(t *testing.T) {
 		}
 	}
 }
+
+func TestGenerateRefreshToken_Success(t *testing.T) {
+	token, err := GenerateRefreshToken()
+	if err != nil {
+		t.Fatalf("Failed to generate refresh token: %v", err)
+	}
+
+	if token == "" {
+		t.Fatal("Generated refresh token is empty")
+	}
+
+	// Verify token is base64 URL-safe encoded
+	if len(token) < 32 {
+		t.Errorf("Token seems too short: %d characters", len(token))
+	}
+}
+
+func TestGenerateRefreshToken_Uniqueness(t *testing.T) {
+	tokens := make(map[string]bool)
+	for i := 0; i < 100; i++ {
+		token, err := GenerateRefreshToken()
+		if err != nil {
+			t.Fatalf("Failed to generate refresh token: %v", err)
+		}
+
+		if tokens[token] {
+			t.Errorf("Duplicate refresh token generated: %s", token)
+		}
+		tokens[token] = true
+	}
+}
+
+func TestHashRefreshToken_Consistency(t *testing.T) {
+	token := "test-refresh-token-123"
+	hash1 := HashRefreshToken(token)
+	hash2 := HashRefreshToken(token)
+
+	if hash1 != hash2 {
+		t.Errorf("Hash should be consistent. Got %s and %s", hash1, hash2)
+	}
+
+	if hash1 == "" {
+		t.Error("Hash should not be empty")
+	}
+
+	// SHA256 hex should be 64 characters
+	if len(hash1) != 64 {
+		t.Errorf("Expected hash length 64, got %d", len(hash1))
+	}
+}
+
+func TestHashRefreshToken_DifferentTokens(t *testing.T) {
+	token1 := "test-refresh-token-123"
+	token2 := "test-refresh-token-456"
+
+	hash1 := HashRefreshToken(token1)
+	hash2 := HashRefreshToken(token2)
+
+	if hash1 == hash2 {
+		t.Error("Different tokens should produce different hashes")
+	}
+}
