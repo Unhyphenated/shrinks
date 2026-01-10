@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/mail"
+	"time"
 
 	"github.com/Unhyphenated/shrinks-backend/internal/model"
 	"github.com/Unhyphenated/shrinks-backend/internal/storage"
@@ -16,6 +17,8 @@ var (
     ErrPasswordTooLong  = errors.New("password exceeds 72 characters")
 	ErrInvalidCredentials = errors.New("invalid email or password")
 	ErrUserAlreadyExists = errors.New("user already exists")
+	ErrInvalidRefreshToken = errors.New("invalid refresh token")
+    ErrRefreshTokenExpired = errors.New("refresh token has expired")
 )
 
 type AuthService struct {
@@ -77,13 +80,63 @@ func (as *AuthService) Login(ctx context.Context, email string, password string)
 		return model.AuthResponse{}, ErrInvalidCredentials
 	}
 
-	token, err := GenerateToken(user.ID, email)
+	accessToken, err := GenerateToken(user.ID, email)
+	if err != nil {
+		return model.AuthResponse{}, err
+	}
+
+	refreshToken, err := GenerateRefreshToken()
+	if err != nil {
+		return model.AuthResponse{}, err
+	}
+
+	tokenHash := HashRefreshToken(refreshToken)
+
+	expiresAt := time.Now().Add(7 * 24 * time.Hour)
+
+	err = as.Store.CreateRefreshToken(ctx, user.ID, tokenHash, expiresAt)
 	if err != nil {
 		return model.AuthResponse{}, err
 	}
 
 	return model.AuthResponse{
-		Token: token,
+		AccessToken: accessToken,
+		RefreshToken: refreshToken,
 		User: *user,
 	}, nil
 }
+
+func (as *AuthService) RefreshAccessToken(ctx context.Context, refreshToken string) (model.RefreshTokenResponse, error) {
+	tokenHash := HashRefreshToken(refreshToken)
+
+	storedToken, err := as.Store.GetRefreshToken(ctx, tokenHash)
+	if err != nil {
+		return model.RefreshTokenResponse{}, err
+	}
+
+	if storedToken == nil {
+		return model.RefreshTokenResponse{}, ErrInvalidRefreshToken
+	}
+
+	if time.Now().After(storedToken.ExpiresAt) {
+		return model.RefreshTokenResponse{}, ErrRefreshTokenExpired
+	}
+
+	user, err := as.Store.GetUserByID(ctx, storedToken.UserID)
+	if err != nil {
+		return model.RefreshTokenResponse{}, err
+	}
+
+	if user == nil {
+		return model.RefreshTokenResponse{}, ErrInvalidRefreshToken
+	}
+
+	accessToken, err := GenerateToken(user.ID, user.Email)
+	if err != nil {
+		return model.RefreshTokenResponse{}, err
+	}
+
+	return model.RefreshTokenResponse{
+		AccessToken: accessToken,
+	}, nil
+}	

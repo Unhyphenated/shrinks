@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/Unhyphenated/shrinks-backend/internal/encoding"
 	"github.com/Unhyphenated/shrinks-backend/internal/model"
@@ -24,6 +25,14 @@ type LinkStore interface {
 type AuthStore interface {
 	CreateUser(ctx context.Context, email string, passwordHash string) (uint64, error)
 	GetUserByEmail(ctx context.Context, email string) (*model.User, error)
+	GetUserByID(ctx context.Context, id uint64) (*model.User, error)
+
+	// Refresh token methods
+	CreateRefreshToken(ctx context.Context, userID uint64, tokenHash string, expiresAt time.Time) error
+	GetRefreshToken(ctx context.Context, tokenHash string) (*model.RefreshToken, error)
+	DeleteRefreshToken(ctx context.Context, tokenHash string) error
+	DeleteUserRefreshTokens(ctx context.Context, userID uint64) error
+
 	Close()
 }
 
@@ -168,4 +177,97 @@ func (s *PostgresStore) GetUserByEmail(ctx context.Context, email string) (*mode
 	}
 
 	return user, nil
+}
+
+func (s *PostgresStore) GetUserByID(ctx context.Context, id uint64) (*model.User, error) {
+	query := `
+		SELECT id, email, password_hash, created_at
+		FROM users
+		WHERE id = $1;
+	`
+
+	user := &model.User{}
+	err := s.Pool.QueryRow(ctx, query, id).Scan(
+		&user.ID,
+		&user.Email,
+		&user.PasswordHash,
+		&user.CreatedAt,
+	)
+
+	if err != nil {
+		if err == pgx.ErrNoRows {
+            return nil, nil // Return nil link and nil error for "not found"
+        }
+		return nil, fmt.Errorf("error querying user by id: %w", err)
+	}
+
+	return user, nil
+}
+
+
+func (s *PostgresStore) CreateRefreshToken(ctx context.Context, userID uint64, tokenHash string, expiresAt time.Time) error {
+	query := `
+		INSERT INTO refresh_tokens (user_id, token_hash, expires_at)
+		VALUES ($1, $2, $3)
+	`
+
+	_, err := s.Pool.Exec(ctx, query, userID, tokenHash, expiresAt)
+	if err != nil {
+		return fmt.Errorf("Failed to create refresh token: %w", err)
+	}
+
+	return nil
+}
+
+func (s *PostgresStore) GetRefreshToken(ctx context.Context, tokenHash string) (*model.RefreshToken, error) {
+	query := `
+		SELECT id, user_id, token_hash, expires_at, created_at
+		FROM refresh_tokens
+		WHERE token_hash = $1
+	`
+	token := &model.RefreshToken{}
+
+	err := s.Pool.QueryRow(ctx, query, tokenHash).Scan(
+		&token.ID,
+        &token.UserID,
+        &token.TokenHash,
+        &token.ExpiresAt,
+        &token.CreatedAt,
+	)
+
+	if err != nil {
+		if err == pgx.ErrNoRows {
+            return nil, nil // Not found
+        }
+		return nil, fmt.Errorf("Error querying refresh token: %w", err)
+	}
+	return token, nil
+}
+
+func (s *PostgresStore) DeleteRefreshToken(ctx context.Context, tokenHash string) error {
+	query := `
+		DELETE FROM refresh_tokens
+		WHERE token_hash = $1
+	`
+
+	_, err := s.Pool.Exec(ctx, query, tokenHash)
+	if err != nil {
+		return fmt.Errorf("failed to delete refresh token: %w", err)
+	}
+
+	return nil
+}
+
+func (s *PostgresStore) DeleteUserRefreshTokens(ctx context.Context, userID uint64) error {
+	query := `
+		DELETE FROM refresh_tokens
+		WHERE user_id = $1
+	`
+
+	_, err := s.Pool.Exec(ctx, query, userID)
+	if err != nil {
+		return fmt.Errorf("failed to delete user refresh tokens: %w", err)
+	}
+
+	return nil
 }

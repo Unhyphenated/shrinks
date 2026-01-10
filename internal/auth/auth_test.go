@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/Unhyphenated/shrinks-backend/internal/storage"
 	"github.com/joho/godotenv"
@@ -40,7 +41,13 @@ func TestMain(m *testing.M) {
 func cleanupUsers(t *testing.T, emails ...string) {
 	ctx := context.Background()
 	for _, email := range emails {
-		_, err := testStore.Pool.Exec(ctx, "DELETE FROM users WHERE email = $1", email)
+		// First delete refresh tokens for the user
+		user, err := testStore.GetUserByEmail(ctx, email)
+		if err == nil && user != nil {
+			_ = testStore.DeleteUserRefreshTokens(ctx, user.ID)
+		}
+		// Then delete the user
+		_, err = testStore.Pool.Exec(ctx, "DELETE FROM users WHERE email = $1", email)
 		if err != nil {
 			t.Logf("Cleanup failed for %s: %v", email, err)
 		}
@@ -211,15 +218,18 @@ func TestAuthService_Login_Success(t *testing.T) {
 		t.Fatalf("Login failed: %v", err)
 	}
 
-	if resp.Token == "" {
-		t.Error("Expected non-empty token")
+	if resp.AccessToken == "" {
+		t.Error("Expected non-empty access token")
+	}
+	if resp.RefreshToken == "" {
+		t.Error("Expected non-empty refresh token")
 	}
 	if resp.User.Email != email {
 		t.Errorf("Expected email %s, got %s", email, resp.User.Email)
 	}
 
-	// Verify token is valid
-	claims, err := ValidateToken(resp.Token)
+	// Verify access token is valid
+	claims, err := ValidateToken(resp.AccessToken)
 	if err != nil {
 		t.Fatalf("Token validation failed: %v", err)
 	}
@@ -302,12 +312,15 @@ func TestAuthService_EndToEnd_RegisterLoginValidate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Login failed: %v", err)
 	}
-	if loginResp.Token == "" {
-		t.Fatal("Expected non-empty token")
+	if loginResp.AccessToken == "" {
+		t.Fatal("Expected non-empty access token")
+	}
+	if loginResp.RefreshToken == "" {
+		t.Fatal("Expected non-empty refresh token")
 	}
 
-	// Step 3: Validate token
-	claims, err := ValidateToken(loginResp.Token)
+	// Step 3: Validate access token
+	claims, err := ValidateToken(loginResp.AccessToken)
 	if err != nil {
 		t.Fatalf("Token validation failed: %v", err)
 	}
@@ -342,6 +355,132 @@ func TestAuthService_Login_NonExistentUser(t *testing.T) {
 	}
 	if err != ErrInvalidCredentials {
 		t.Errorf("Expected ErrInvalidCredentials, got %v", err)
+	}
+}
+
+func TestAuthService_RefreshAccessToken_Success(t *testing.T) {
+	if testStore == nil {
+		t.Skip("DATABASE_URL not set, skipping integration test")
+	}
+
+	os.Setenv("JWT_SECRET", "test-secret-123")
+	defer os.Unsetenv("JWT_SECRET")
+
+	service := NewAuthService(testStore)
+	email := "refresh-test@example.com"
+	password := "password123"
+
+	cleanupUsers(t, email)
+	defer cleanupUsers(t, email)
+
+	// Register and login to get refresh token
+	_, err := service.Register(context.Background(), email, password)
+	if err != nil {
+		t.Fatalf("Registration failed: %v", err)
+	}
+
+	loginResp, err := service.Login(context.Background(), email, password)
+	if err != nil {
+		t.Fatalf("Login failed: %v", err)
+	}
+
+	if loginResp.RefreshToken == "" {
+		t.Fatal("Expected non-empty refresh token")
+	}
+
+	// Refresh access token
+	refreshResp, err := service.RefreshAccessToken(context.Background(), loginResp.RefreshToken)
+	if err != nil {
+		t.Fatalf("RefreshAccessToken failed: %v", err)
+	}
+
+	if refreshResp.AccessToken == "" {
+		t.Error("Expected non-empty access token")
+	}
+
+	// Verify new access token is valid
+	claims, err := ValidateToken(refreshResp.AccessToken)
+	if err != nil {
+		t.Fatalf("Token validation failed: %v", err)
+	}
+
+	if claims.Email != email {
+		t.Errorf("Expected email %s in token, got %s", email, claims.Email)
+	}
+	if claims.UserID != loginResp.User.ID {
+		t.Errorf("Expected UserID %d in token, got %d", loginResp.User.ID, claims.UserID)
+	}
+}
+
+func TestAuthService_RefreshAccessToken_InvalidToken(t *testing.T) {
+	if testStore == nil {
+		t.Skip("DATABASE_URL not set, skipping integration test")
+	}
+
+	os.Setenv("JWT_SECRET", "test-secret-123")
+	defer os.Unsetenv("JWT_SECRET")
+
+	service := NewAuthService(testStore)
+
+	// Try to refresh with invalid token
+	_, err := service.RefreshAccessToken(context.Background(), "invalid-token")
+	if err == nil {
+		t.Fatal("Expected error for invalid refresh token")
+	}
+	if err != ErrInvalidRefreshToken {
+		t.Errorf("Expected ErrInvalidRefreshToken, got %v", err)
+	}
+}
+
+func TestAuthService_RefreshAccessToken_ExpiredToken(t *testing.T) {
+	if testStore == nil {
+		t.Skip("DATABASE_URL not set, skipping integration test")
+	}
+
+	os.Setenv("JWT_SECRET", "test-secret-123")
+	defer os.Unsetenv("JWT_SECRET")
+
+	service := NewAuthService(testStore)
+	email := "expired-test@example.com"
+	password := "password123"
+
+	cleanupUsers(t, email)
+	defer cleanupUsers(t, email)
+
+	// Register and login
+	_, err := service.Register(context.Background(), email, password)
+	if err != nil {
+		t.Fatalf("Registration failed: %v", err)
+	}
+
+	loginResp, err := service.Login(context.Background(), email, password)
+	if err != nil {
+		t.Fatalf("Login failed: %v", err)
+	}
+
+	// Manually expire the refresh token in database
+	ctx := context.Background()
+	tokenHash := HashRefreshToken(loginResp.RefreshToken)
+	storedToken, err := testStore.GetRefreshToken(ctx, tokenHash)
+	if err != nil || storedToken == nil {
+		t.Fatalf("Failed to get refresh token: %v", err)
+	}
+
+	// Update expiration to past
+	_, err = testStore.Pool.Exec(ctx,
+		"UPDATE refresh_tokens SET expires_at = $1 WHERE token_hash = $2",
+		storedToken.ExpiresAt.Add(-8*24*time.Hour), tokenHash)
+	if err != nil {
+		t.Fatalf("Failed to expire token: %v", err)
+	}
+
+	// Try to refresh with expired token
+	_, err = service.RefreshAccessToken(context.Background(), loginResp.RefreshToken)
+	if err == nil {
+		t.Fatal("Expected error for expired refresh token")
+	}
+	if err != ErrRefreshTokenExpired {
+		t.Errorf("Expected ErrRefreshTokenExpired, got %v", err)
 	}
 }
 

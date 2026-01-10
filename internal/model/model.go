@@ -25,8 +25,25 @@ type LoginRequest struct {
 }
 
 type AuthResponse struct {
-	Token string `json:"token"`
+	AccessToken string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
 	User User `json:"user"`
+}
+
+type RefreshToken struct {
+	ID uint64 `db:"id"`
+	UserID uint64 `json:"user_id"`
+	TokenHash string `json:"token_hash"`
+	ExpiresAt time.Time `json:"expires_at"`
+	CreatedAt time.Time `db:"created_at"`
+}
+
+type RefreshTokenRequest struct {
+	RefreshToken string `json:"refresh_token"`
+}
+
+type RefreshTokenResponse struct {
+	AccessToken string `json:"access_token"`
 }
 
 // Link Models

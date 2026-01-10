@@ -51,8 +51,10 @@ func main() {
 	mux.Handle("POST /api/v1/links/shorten", auth.OptionalAuth(handlerShorten(linkService)))
 	mux.HandleFunc("GET /api/v1/links/{shortCode}", handlerRedirect(linkService))
 
-	mux.HandleFunc("POST /api/v1/register", handlerRegister(authService))
-	mux.HandleFunc("POST /api/v1/login", handlerLogin(authService))
+	mux.HandleFunc("POST /api/v1/auth/register", handlerRegister(authService))
+	mux.HandleFunc("POST /api/v1/auth/login", handlerLogin(authService))
+	
+	mux.HandleFunc("POST /api/v1/auth/refresh", handlerRefresh(authService))
 
 	fmt.Println("Server starting on :8080")
 
@@ -139,6 +141,39 @@ func handlerLogin(svc *auth.AuthService) http.HandlerFunc {
 		}
 
 		util.WriteJSON(w, http.StatusOK, authResp)
+	}
+}
+
+func handlerRefresh(svc *auth.AuthService) http.HandlerFunc {
+	return func (w http.ResponseWriter, r *http.Request) {
+		var req model.RefreshTokenRequest
+
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			util.WriteError(w, http.StatusBadRequest, "Invalid request payload")
+			return
+		}
+
+		if req.RefreshToken == "" {
+			util.WriteError(w, http.StatusBadRequest, "Refresh token is required")
+			return
+		}
+
+		refreshResp, err := svc.RefreshAccessToken(r.Context(), req.RefreshToken)
+		if err != nil {
+			switch {
+			case errors.Is(err, auth.ErrInvalidRefreshToken):
+				util.WriteError(w, http.StatusUnauthorized, "Invalid refresh token")
+			case errors.Is(err, auth.ErrRefreshTokenExpired):
+				util.WriteError(w, http.StatusUnauthorized, "Refresh token has expired")
+			default:
+				log.Printf("Refresh token error: %v", err)
+				util.WriteError(w, http.StatusInternalServerError, "Failed to refresh access token")
+			}
+			return
+		}
+
+
+		util.WriteJSON(w, http.StatusOK, refreshResp)
 	}
 }
 
