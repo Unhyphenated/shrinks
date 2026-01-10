@@ -15,6 +15,7 @@ import (
 	"github.com/Unhyphenated/shrinks-backend/internal/service"
 	"github.com/Unhyphenated/shrinks-backend/internal/storage"
 	"github.com/Unhyphenated/shrinks-backend/internal/util"
+	"github.com/Unhyphenated/shrinks-backend/internal/analytics"
 	"github.com/joho/godotenv"
 )
 
@@ -42,7 +43,8 @@ func main() {
 	}
 	defer cache.Close()
 
-	linkService := service.NewLinkService(store, cache)
+	analyticsService := analytics.NewAnalyticsService(store)
+	linkService := service.NewLinkService(store, cache, analyticsService)
 	authService := auth.NewAuthService(store)
 
 	// Simple HTTP server setup
@@ -53,8 +55,10 @@ func main() {
 
 	mux.HandleFunc("POST /api/v1/auth/register", handlerRegister(authService))
 	mux.HandleFunc("POST /api/v1/auth/login", handlerLogin(authService))
-	
+
 	mux.HandleFunc("POST /api/v1/auth/refresh", handlerRefresh(authService))
+
+	mux.Handle("GET /api/v1/analytics/{shortCode}", handlerLinkAnalytics(analyticsService, linkService)) // auth guard
 
 	fmt.Println("Server starting on :8080")
 
@@ -145,7 +149,7 @@ func handlerLogin(svc *auth.AuthService) http.HandlerFunc {
 }
 
 func handlerRefresh(svc *auth.AuthService) http.HandlerFunc {
-	return func (w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
 		var req model.RefreshTokenRequest
 
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -172,7 +176,6 @@ func handlerRefresh(svc *auth.AuthService) http.HandlerFunc {
 			return
 		}
 
-
 		util.WriteJSON(w, http.StatusOK, refreshResp)
 	}
 }
@@ -191,7 +194,7 @@ func handlerShorten(svc *service.LinkService) http.HandlerFunc {
 			return
 		}
 
-		var userID *uint64 
+		var userID *uint64
 		claims, ok := auth.GetClaimsFromContext(r.Context())
 		if ok {
 			userID = &claims.UserID
@@ -215,20 +218,74 @@ func handlerShorten(svc *service.LinkService) http.HandlerFunc {
 
 func handlerRedirect(svc *service.LinkService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		ua := util.ParseUserAgent(r.Header.Get("User-Agent"))
+		ip := util.GetIP(r.Header.Get("X-Forwarded-For"), r.RemoteAddr)
+		
+		event := &model.AnalyticsEvent{
+			IPAddress:  util.AnonymizeIP(ip),
+			DeviceType: ua.DeviceType,
+			Browser:    ua.Browser,
+			OS:         ua.OS,
+			UserAgent:  r.Header.Get("User-Agent"),
+    	}
+
 		path := r.URL.Path
-		shortCode := strings.TrimPrefix(path, "/api/v1/links")
+		shortCode := strings.TrimPrefix(path, "/api/v1/links/")
 
 		if shortCode == "" {
 			util.WriteError(w, http.StatusBadRequest, "Short URL code is required")
 			return
 		}
 
-		longURL, err := svc.Redirect(r.Context(), shortCode)
+		longURL, err := svc.Redirect(r.Context(), shortCode, event)
 		if err != nil {
 			util.WriteError(w, http.StatusNotFound, "Link not found")
 			return
 		}
 
 		http.Redirect(w, r, longURL, http.StatusFound)
+	}
+}
+
+// handlerListLinks - GET /api/v1/links
+// Returns all links for authenticated user with basic stats
+// func handlerListLinks(linkService *service.LinkService, analyticsService *service.AnalyticsService) http.HandlerFunc {
+// 	return func(w http.ResponseWriter, r *http.Request) {
+// 		// TODO: get userID from JWT token (RequireAuth middleware)
+// 		// TODO: call analyticsService.GetUserLinksWithStats(userID)
+// 		// TODO: return JSON response with links array
+// 	}
+// }
+
+// handlerLinkAnalytics - GET /api/v1/links/{shortCode}/analytics?period=30d
+// Returns detailed analytics for specific link
+func handlerLinkAnalytics(analyticsService *analytics.AnalyticsService, linkService *service.LinkService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// TODO: extract shortCode from URL path
+		path := r.URL.Path
+		shortCode := strings.TrimPrefix(path, "/api/v1/analytics/")
+
+		// TODO: get userID from JWT token (RequireAuth middleware)
+		var userID *uint64
+		claims, ok := auth.GetClaimsFromContext(r.Context())
+		if ok {
+			userID = &claims.UserID
+		}
+
+		// TODO: get link by shortCode
+		link, err := linkService.Store.GetLinkByCode(r.Context(), shortCode)
+		if err != nil || link == nil {
+			util.WriteError(w, http.StatusNotFound, "Link not found")
+			return
+		}
+
+		// TODO: check link ownership (return 403 if user doesn't own link)
+		if link.UserID == nil || userID == nil || *link.UserID != *userID {
+			util.WriteError(w, http.StatusForbidden, "Access denied")
+			return
+		}
+		// TODO: parse period query param (default to "30d", validate "24h"/"7d"/"30d") DO THIS LATER
+		// TODO: call analyticsService.RetrieveAnalytics(linkID, period)
+		// TODO: return JSON response with AnalyticsSummary
 	}
 }

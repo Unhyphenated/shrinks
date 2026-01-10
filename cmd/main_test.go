@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Unhyphenated/shrinks-backend/internal/analytics"
 	"github.com/Unhyphenated/shrinks-backend/internal/encoding"
 	"github.com/Unhyphenated/shrinks-backend/internal/model"
 	"github.com/Unhyphenated/shrinks-backend/internal/service"
@@ -43,6 +44,14 @@ func newMockCache() *service.MockCache {
     }
 }
 
+func newMockAnalytics() *analytics.MockAnalytics {
+	return &analytics.MockAnalytics{
+		RecordEventFn: func(ctx context.Context, event *model.AnalyticsEvent) error {
+			return nil
+		},
+	}
+}
+
 // =================================================================
 // 1. E2E Test: Success Case (HTTP 201 Created)
 // =================================================================
@@ -63,8 +72,9 @@ func TestHandlerShorten_Success(t *testing.T) {
     }
 	mockStore := newMockStore(cfg)
 	mockCache := newMockCache()
+	mockAnalytics := newMockAnalytics()
 
-	svc := service.NewLinkService(mockStore, mockCache)
+	svc := service.NewLinkService(mockStore, mockCache, mockAnalytics)
 	handler := handlerShorten(svc)
 
 	reqBody := model.CreateLinkRequest{URL: expectedLongURL}
@@ -106,7 +116,9 @@ func TestHandlerShorten_InternalServerError(t *testing.T) {
     }
 	mockStore := newMockStore(cfg)
 	mockCache := newMockCache()
-	svc := service.NewLinkService(mockStore, mockCache)
+	mockAnalytics := newMockAnalytics()
+	
+	svc := service.NewLinkService(mockStore, mockCache, mockAnalytics)
 	handler := handlerShorten(svc)
 
 	reqBody := model.CreateLinkRequest{URL: testURL}
@@ -135,7 +147,8 @@ func TestHandlerShorten_BadRequest(t *testing.T) {
 	}
     mockStore := newMockStore(cfg) 
 	mockCache := newMockCache()
-	svc := service.NewLinkService(mockStore, mockCache)
+	mockAnalytics := newMockAnalytics()
+	svc := service.NewLinkService(mockStore, mockCache, mockAnalytics)
 	handler := handlerShorten(svc)
 
 	invalidBody := `{"not_a_url_field": "test"}`
