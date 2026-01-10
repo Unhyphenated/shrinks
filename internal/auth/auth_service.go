@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/mail"
+	"time"
 
 	"github.com/Unhyphenated/shrinks-backend/internal/model"
 	"github.com/Unhyphenated/shrinks-backend/internal/storage"
@@ -77,13 +78,28 @@ func (as *AuthService) Login(ctx context.Context, email string, password string)
 		return model.AuthResponse{}, ErrInvalidCredentials
 	}
 
-	token, err := GenerateToken(user.ID, email)
+	accessToken, err := GenerateToken(user.ID, email)
+	if err != nil {
+		return model.AuthResponse{}, err
+	}
+
+	refreshToken, err := GenerateRefreshToken()
+	if err != nil {
+		return model.AuthResponse{}, err
+	}
+
+	tokenHash := HashRefreshToken(refreshToken)
+
+	expiresAt := time.Now().Add(7 * 24 * time.Hour)
+
+	err = as.Store.CreateRefreshToken(ctx, user.ID, tokenHash, expiresAt)
 	if err != nil {
 		return model.AuthResponse{}, err
 	}
 
 	return model.AuthResponse{
-		Token: token,
+		AccessToken: accessToken,
+		RefreshToken: refreshToken,
 		User: *user,
 	}, nil
 }
