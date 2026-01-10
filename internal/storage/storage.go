@@ -18,8 +18,8 @@ var (
 
 type LinkStore interface {
 	SaveLink(ctx context.Context, longURL string, userID *uint64) (string, error)
-    GetLinkByCode(ctx context.Context, code string) (*model.Link, error)
-    Close()
+	GetLinkByCode(ctx context.Context, code string) (*model.Link, error)
+	Close()
 }
 
 type AuthStore interface {
@@ -36,32 +36,48 @@ type AuthStore interface {
 	Close()
 }
 
+type AnalyticsStore interface {
+	SaveAnalyticsEvent(ctx context.Context, event *model.AnalyticsEvent) error
+
+// 	// GetAnalyticsEvents - retrieve raw events for aggregation
+// 	// TODO: SELECT from analytics WHERE link_id = ? AND clicked_at BETWEEN ? AND ?
+// 	// TODO: return slice of AnalyticsEvent
+// 	GetAnalyticsEvents(ctx context.Context, linkID uint64, startDate, endDate time.Time) ([]*model.AnalyticsEvent, error)
+
+// 	// GetUserLinksWithStats - get user's links with click counts
+// 	// TODO: SELECT links with JOIN to analytics for total_clicks count
+// 	// TODO: return slice of LinkWithStats
+// 	GetUserLinksWithStats(ctx context.Context, userID uint64) ([]*model.LinkWithStats, error)
+
+	Close()
+}
+
 type PostgresStore struct {
 	Pool *pgxpool.Pool // We use the Pool directly from pgxpool
 }
 
 // NewPostgresStore initializes the Postgres database connection pool.
 func NewPostgresStore(dbURL string) (*PostgresStore, error) {
-    ctx := context.Background() 
-    
-    // pgxpool.New uses the URL and sets up the pool based on defaults (or config)
-    pool, err := pgxpool.New(ctx, dbURL)
-    if err != nil {
-        return nil, fmt.Errorf("failed to create connection pool: %w", err)
-    }
+	ctx := context.Background()
 
-    // Ping the database using the pool's health check
-    if err := pool.Ping(ctx); err != nil {
-        pool.Close()
-        return nil, fmt.Errorf("failed to ping database: %w", err)
-    }
-    
-    fmt.Println("Successfully initialized Postgres Connection Pool!")
+	// pgxpool.New uses the URL and sets up the pool based on defaults (or config)
+	pool, err := pgxpool.New(ctx, dbURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create connection pool: %w", err)
+	}
+
+	// Ping the database using the pool's health check
+	if err := pool.Ping(ctx); err != nil {
+		pool.Close()
+		return nil, fmt.Errorf("failed to ping database: %w", err)
+	}
+
+	fmt.Println("Successfully initialized Postgres Connection Pool!")
 	return &PostgresStore{Pool: pool}, nil
 }
 
 func (s *PostgresStore) Close() {
-    s.Pool.Close()
+	s.Pool.Close()
 }
 
 func (s *PostgresStore) SaveLink(ctx context.Context, longURL string, userID *uint64) (string, error) {
@@ -69,7 +85,7 @@ func (s *PostgresStore) SaveLink(ctx context.Context, longURL string, userID *ui
 	if err != nil {
 		return "", fmt.Errorf("failed to start transaction: %w", err)
 	}
-	defer tx.Rollback(ctx) 
+	defer tx.Rollback(ctx)
 
 	var generatedID uint64
 	insertQuery := `
@@ -82,7 +98,7 @@ func (s *PostgresStore) SaveLink(ctx context.Context, longURL string, userID *ui
 		return "", fmt.Errorf("transaction insert failed: %w", err)
 	}
 
-	shortCode := encoding.Encode(generatedID) 
+	shortCode := encoding.Encode(generatedID)
 
 	updateQuery := `
 		UPDATE links 
@@ -117,14 +133,14 @@ func (s *PostgresStore) GetLinkByCode(ctx context.Context, shortCode string) (*m
 	)
 
 	if err != nil {
-        // Handle the specific, common case where the code isn't in the database.
-        if err == pgx.ErrNoRows {
-            return nil, nil // Return nil link and nil error for "not found"
-        }
-	        return nil, fmt.Errorf("error querying link by code: %w", err)
-    }
+		// Handle the specific, common case where the code isn't in the database.
+		if err == pgx.ErrNoRows {
+			return nil, nil // Return nil link and nil error for "not found"
+		}
+		return nil, fmt.Errorf("error querying link by code: %w", err)
+	}
 
-    return link, nil
+	return link, nil
 }
 
 func (s *PostgresStore) CreateUser(ctx context.Context, email string, passwordHash string) (uint64, error) {
@@ -171,8 +187,8 @@ func (s *PostgresStore) GetUserByEmail(ctx context.Context, email string) (*mode
 
 	if err != nil {
 		if err == pgx.ErrNoRows {
-            return nil, nil // Return nil link and nil error for "not found"
-        }
+			return nil, nil // Return nil link and nil error for "not found"
+		}
 		return nil, fmt.Errorf("error querying user by email: %w", err)
 	}
 
@@ -196,14 +212,13 @@ func (s *PostgresStore) GetUserByID(ctx context.Context, id uint64) (*model.User
 
 	if err != nil {
 		if err == pgx.ErrNoRows {
-            return nil, nil // Return nil link and nil error for "not found"
-        }
+			return nil, nil // Return nil link and nil error for "not found"
+		}
 		return nil, fmt.Errorf("error querying user by id: %w", err)
 	}
 
 	return user, nil
 }
-
 
 func (s *PostgresStore) CreateRefreshToken(ctx context.Context, userID uint64, tokenHash string, expiresAt time.Time) error {
 	query := `
@@ -229,16 +244,16 @@ func (s *PostgresStore) GetRefreshToken(ctx context.Context, tokenHash string) (
 
 	err := s.Pool.QueryRow(ctx, query, tokenHash).Scan(
 		&token.ID,
-        &token.UserID,
-        &token.TokenHash,
-        &token.ExpiresAt,
-        &token.CreatedAt,
+		&token.UserID,
+		&token.TokenHash,
+		&token.ExpiresAt,
+		&token.CreatedAt,
 	)
 
 	if err != nil {
 		if err == pgx.ErrNoRows {
-            return nil, nil // Not found
-        }
+			return nil, nil // Not found
+		}
 		return nil, fmt.Errorf("Error querying refresh token: %w", err)
 	}
 	return token, nil
@@ -267,6 +282,28 @@ func (s *PostgresStore) DeleteUserRefreshTokens(ctx context.Context, userID uint
 	_, err := s.Pool.Exec(ctx, query, userID)
 	if err != nil {
 		return fmt.Errorf("failed to delete user refresh tokens: %w", err)
+	}
+
+	return nil
+}
+
+func (s *PostgresStore) SaveAnalyticsEvent(ctx context.Context, event *model.AnalyticsEvent) error {
+	query := `
+		INSERT INTO analytics (link_id, ip_address, user_agent, device_type, browser, os, clicked_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+	`
+
+	_, err := s.Pool.Exec(ctx, query,
+		event.LinkID,
+		event.IPAddress,
+		event.UserAgent,
+		event.DeviceType,
+		event.Browser,
+		event.OS,
+		event.ClickedAt,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to save analytics event: %w", err)
 	}
 
 	return nil
