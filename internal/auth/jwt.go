@@ -1,7 +1,12 @@
 package auth
 
 import (
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/hex"
 	"errors"
+	"fmt"
 	"os"
 	"time"
 
@@ -65,4 +70,20 @@ func ValidateToken(tokenString string) (*Claims, error) {
 	}
 
 	return claims, nil
+}
+
+func GenerateRefreshToken() (string, error) {
+	bytes := make([]byte, 32)
+    if _, err := rand.Read(bytes); err != nil {
+        return "", fmt.Errorf("failed to generate token: %w", err)
+    }
+    
+	token := base64.URLEncoding.WithPadding(base64.NoPadding).EncodeToString(bytes)
+	return token, nil
+}
+
+func HashRefreshToken(token string) string {
+	hash := sha256.Sum256([]byte(token))
+    // Return as hex string
+    return hex.EncodeToString(hash[:])
 }
