@@ -38,6 +38,13 @@ type RefreshToken struct {
 	CreatedAt time.Time `db:"created_at"`
 }
 
+type RefreshTokenRequest struct {
+	RefreshToken string `json:"refresh_token"`
+}
+
+type RefreshTokenResponse struct {
+	AccessToken string `json:"access_token"`
+}
 
 // Link Models
 type Link struct {
