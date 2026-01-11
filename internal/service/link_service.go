@@ -18,7 +18,7 @@ type LinkService struct {
 	AnalyticsService analytics.AnalyticsProvider
 }
 
-func NewLinkService(s storage.LinkStore, c cache.Cache) *LinkService {
+func NewLinkService(s storage.LinkStore, c cache.Cache, a analytics.AnalyticsProvider) *LinkService {
 	return &LinkService{Store: s, Cache: c}
 }
 
