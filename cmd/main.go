@@ -58,7 +58,7 @@ func main() {
 
 	mux.HandleFunc("POST /api/v1/auth/refresh", handlerRefresh(authService))
 
-	mux.Handle("GET /api/v1/analytics/{shortCode}", handlerLinkAnalytics(analyticsService, linkService)) // auth guard
+	mux.Handle("GET /api/v1/analytics/{shortCode}", auth.RequireAuth(handlerLinkAnalytics(analyticsService, linkService))) // auth guard
 
 	fmt.Println("Server starting on :8080")
 
