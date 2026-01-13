@@ -81,40 +81,29 @@ func (s *PostgresStore) Close() {
 }
 
 func (s *PostgresStore) SaveLink(ctx context.Context, longURL string, userID *uint64) (string, error) {
-	tx, err := s.Pool.Begin(ctx)
-	if err != nil {
-		return "", fmt.Errorf("failed to start transaction: %w", err)
-	}
-	defer tx.Rollback(ctx)
+    var shortCode string
+    
+    var nextID uint64
+    err := s.Pool.QueryRow(ctx, "SELECT nextval('links_id_seq')").Scan(&nextID)
+    if err != nil {
+        return "", err
+    }
 
-	var generatedID uint64
-	insertQuery := `
-		INSERT INTO links (long_url, short_code, user_id) 
-		VALUES ($1, '', $2)
-		RETURNING id;
-	`
-	err = tx.QueryRow(ctx, insertQuery, longURL, userID).Scan(&generatedID)
-	if err != nil {
-		return "", fmt.Errorf("transaction insert failed: %w", err)
-	}
+    // 2. Generate the code in Go
+    shortCode = encoding.Encode(nextID)
 
-	shortCode := encoding.Encode(generatedID)
+    // 3. Insert the full record
+    // Note: userID (as *uint64) will be NULL in DB if the pointer is nil
+    insertQuery := `
+        INSERT INTO links (id, long_url, short_code, user_id) 
+        VALUES ($1, $2, $3, $4);
+    `
+    _, err = s.Pool.Exec(ctx, insertQuery, nextID, longURL, shortCode, userID)
+    if err != nil {
+        return "", fmt.Errorf("failed to insert link: %w", err)
+    }
 
-	updateQuery := `
-		UPDATE links 
-		SET short_code = $1 
-		WHERE id = $2;
-	`
-	_, err = tx.Exec(ctx, updateQuery, shortCode, generatedID)
-	if err != nil {
-		return "", fmt.Errorf("transaction update failed: %w", err)
-	}
-
-	if err := tx.Commit(ctx); err != nil {
-		return "", fmt.Errorf("transaction commit failed: %w", err)
-	}
-
-	return shortCode, nil
+    return shortCode, nil
 }
 
 func (s *PostgresStore) GetLinkByCode(ctx context.Context, shortCode string) (*model.Link, error) {
