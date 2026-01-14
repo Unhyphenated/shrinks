@@ -42,7 +42,7 @@ type AnalyticsStore interface {
 // 	// GetAnalyticsEvents - retrieve raw events for aggregation
 // 	// TODO: SELECT from analytics WHERE link_id = ? AND clicked_at BETWEEN ? AND ?
 // 	// TODO: return slice of AnalyticsEvent
-// 	GetAnalyticsEvents(ctx context.Context, linkID uint64, startDate, endDate time.Time) ([]*model.AnalyticsEvent, error)
+	GetAnalyticsEvents(ctx context.Context, linkID uint64, startDate, endDate time.Time) ([]*model.AnalyticsEvent, error)
 
 // 	// GetUserLinksWithStats - get user's links with click counts
 // 	// TODO: SELECT links with JOIN to analytics for total_clicks count
@@ -296,4 +296,9 @@ func (s *PostgresStore) SaveAnalyticsEvent(ctx context.Context, event *model.Ana
 	}
 
 	return nil
+}
+
+func (s *PostgresStore) GetAnalyticsEvents(ctx context.Context, linkID string, startDate time.Time, endDate time.Time) {
+	// sql query for all records in analytics where linkid == linkid and clicked_at between startdate and enddate
+	// return all records of *model.AnalyticsEvent belongign to linkid
 }

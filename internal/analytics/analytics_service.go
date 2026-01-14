@@ -7,6 +7,11 @@ import (
 	"github.com/Unhyphenated/shrinks-backend/internal/storage"
 )
 
+type AnalyticsProvider interface {
+	RecordEvent(ctx context.Context, event *model.AnalyticsEvent) error
+	RetrieveAnalytics(ctx context.Context, linkID uint64, period string) (*model.AnalyticsSummary, error)
+	// GetUserLinksWithStats(ctx context.Context, userID uint64) ([]*model.LinkWithStats, error)
+}
 type AnalyticsService struct {
 	Store storage.AnalyticsStore
 }
@@ -23,6 +28,14 @@ func (as *AnalyticsService) RecordEvent(ctx context.Context, event *model.Analyt
 	}
 
 	return nil
+}
+
+func (as *AnalyticsService) RetrieveAnalytics(ctx context.Context, linkID uint64, period string) (*model.AnalyticsSummary, error) {
+	// as.Store.GetAnalyticsEvents
+	// sql aggregation for clicks, browser stats, device stats, etc
+
+	// Return &model.AnalyticsSummary
+	return nil, nil
 }
 
 // func (as *AnalyticsService) RetrieveAnalytics(ctx context.Context, linkID uint64, period string) (*model.AnalyticsSummary, error) {
