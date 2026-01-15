@@ -7,7 +7,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strings"
 
 	"github.com/Unhyphenated/shrinks-backend/internal/auth"
 	"github.com/Unhyphenated/shrinks-backend/internal/cache"
@@ -64,14 +63,14 @@ func main() {
 
 	// mux.Handle("GET /api/v1/analytics/{shortCode}", auth.RequireAuth(handlerLinkAnalytics(analyticsService, linkService))) // auth guard
 
+	mux.HandleFunc("GET /health", handlerHealth())
+
 	fmt.Println("Server starting on :8080")
 
 	err = http.ListenAndServe(":8080", mux)
 	if err != nil {
 		log.Fatalf("Server failed to start: %v", err)
 	}
-
-	log.Println("Application is ready to serve requests.")
 }
 
 func handlerRegister(svc *auth.AuthService) http.HandlerFunc {
@@ -262,30 +261,36 @@ func handlerRedirect(svc *service.LinkService) http.HandlerFunc {
 
 // handlerLinkAnalytics - GET /api/v1/links/{shortCode}/analytics?period=30d
 // Returns detailed analytics for specific link
-func handlerLinkAnalytics(analyticsService *analytics.AnalyticsService, linkService *service.LinkService) http.HandlerFunc {
+// func handlerLinkAnalytics(analyticsService *analytics.AnalyticsService, linkService *service.LinkService) http.HandlerFunc {
+// 	return func(w http.ResponseWriter, r *http.Request) {
+// 		shortCode := r.PathValue("shortCode")
+
+// 		var userID *uint64
+// 		claims, ok := auth.GetClaimsFromContext(r.Context())
+// 		if ok {
+// 			userID = &claims.UserID
+// 		}
+
+// 		// TODO: get link by shortCode
+// 		link, err := linkService.Store.GetLinkByCode(r.Context(), shortCode)
+// 		if err != nil || link == nil {
+// 			util.WriteError(w, http.StatusNotFound, "Link not found")
+// 			return
+// 		}
+
+// 		// TODO: check link ownership (return 403 if user doesn't own link)
+// 		if link.UserID == nil || userID == nil || *link.UserID != *userID {
+// 			util.WriteError(w, http.StatusForbidden, "Access denied")
+// 			return
+// 		}
+// 		// TODO: parse period query param (default to "30d", validate "24h"/"7d"/"30d") DO THIS LATER
+// 		// TODO: call analyticsService.RetrieveAnalytics(linkID, period)
+// 		// TODO: return JSON response with AnalyticsSummary
+// 	}
+// }
+
+func handlerHealth() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		shortCode := r.PathValue("shortCode")
-
-		var userID *uint64
-		claims, ok := auth.GetClaimsFromContext(r.Context())
-		if ok {
-			userID = &claims.UserID
-		}
-
-		// TODO: get link by shortCode
-		link, err := linkService.Store.GetLinkByCode(r.Context(), shortCode)
-		if err != nil || link == nil {
-			util.WriteError(w, http.StatusNotFound, "Link not found")
-			return
-		}
-
-		// TODO: check link ownership (return 403 if user doesn't own link)
-		if link.UserID == nil || userID == nil || *link.UserID != *userID {
-			util.WriteError(w, http.StatusForbidden, "Access denied")
-			return
-		}
-		// TODO: parse period query param (default to "30d", validate "24h"/"7d"/"30d") DO THIS LATER
-		// TODO: call analyticsService.RetrieveAnalytics(linkID, period)
-		// TODO: return JSON response with AnalyticsSummary
+		util.WriteJSON(w, http.StatusOK, "OK")
 	}
 }
