@@ -22,12 +22,16 @@ import (
 func main() {
 	_ = godotenv.Load()
 
-	// Create PostgresStore
+	// Create PostgresStore & RedisCache
 	dbURL := os.Getenv("DATABASE_URL")
 	redisURL := os.Getenv("REDIS_URL")
 
 	if dbURL == "" {
 		log.Fatal("DATABASE_URL environment variable is not set. Cannot connect to Postgres.")
+	}
+
+	if redisURL == "" {
+		log.Fatal("REDIS_URL environment variable is not set. Cannot connect to Redis.")
 	}
 
 	store, err := storage.NewPostgresStore(dbURL)
@@ -58,7 +62,7 @@ func main() {
 
 	mux.HandleFunc("POST /api/v1/auth/refresh", handlerRefresh(authService))
 
-	mux.Handle("GET /api/v1/analytics/{shortCode}", auth.RequireAuth(handlerLinkAnalytics(analyticsService, linkService))) // auth guard
+	// mux.Handle("GET /api/v1/analytics/{shortCode}", auth.RequireAuth(handlerLinkAnalytics(analyticsService, linkService))) // auth guard
 
 	fmt.Println("Server starting on :8080")
 
@@ -229,9 +233,8 @@ func handlerRedirect(svc *service.LinkService) http.HandlerFunc {
 			UserAgent:  r.Header.Get("User-Agent"),
     	}
 
-		path := r.URL.Path
-		shortCode := strings.TrimPrefix(path, "/api/v1/links/")
-
+		shortCode := r.PathValue("shortCode")
+	
 		if shortCode == "" {
 			util.WriteError(w, http.StatusBadRequest, "Short URL code is required")
 			return
@@ -261,11 +264,8 @@ func handlerRedirect(svc *service.LinkService) http.HandlerFunc {
 // Returns detailed analytics for specific link
 func handlerLinkAnalytics(analyticsService *analytics.AnalyticsService, linkService *service.LinkService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// TODO: extract shortCode from URL path
-		path := r.URL.Path
-		shortCode := strings.TrimPrefix(path, "/api/v1/analytics/")
+		shortCode := r.PathValue("shortCode")
 
-		// TODO: get userID from JWT token (RequireAuth middleware)
 		var userID *uint64
 		claims, ok := auth.GetClaimsFromContext(r.Context())
 		if ok {
