@@ -1,9 +1,8 @@
-package service
+package storage
 
 import (
 	"context"
 	"github.com/Unhyphenated/shrinks-backend/internal/model"
-	"github.com/Unhyphenated/shrinks-backend/internal/storage"
 )
 
 
@@ -13,7 +12,7 @@ type MockStore struct {
 	CloseFn       func()
 }
 
-var _ storage.LinkStore = (*MockStore)(nil)
+var _ LinkStore = (*MockStore)(nil)
 
 func (m *MockStore) SaveLink(ctx context.Context, longURL string, userID *uint64) (string, error) {
 	return m.SaveLinkFn(ctx, longURL, userID) 

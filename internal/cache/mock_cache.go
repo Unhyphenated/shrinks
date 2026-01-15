@@ -1,10 +1,9 @@
-package service
+package cache
 
 import (
 	"context"
 	"time"
 
-	"github.com/Unhyphenated/shrinks-backend/internal/cache"
 )
 
 type MockCache struct {
@@ -14,7 +13,7 @@ type MockCache struct {
 }
 
 // Ensure MockCache implements cache.Cache interface
-var _ cache.Cache = (*MockCache)(nil)
+var _ Cache = (*MockCache)(nil)
 
 func (m *MockCache) Get(ctx context.Context, key string) (string, error) {
 	if m.GetFn != nil {
