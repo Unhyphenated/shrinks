@@ -16,13 +16,18 @@ var (
 	ErrUniqueViolation = errors.New("unique violation")
 )
 
+type Closer interface {
+    Close()
+}
+
 type LinkStore interface {
+	Closer
 	SaveLink(ctx context.Context, longURL string, userID *uint64) (string, error)
 	GetLinkByCode(ctx context.Context, code string) (*model.Link, error)
-	Close()
 }
 
 type AuthStore interface {
+	Closer
 	CreateUser(ctx context.Context, email string, passwordHash string) (uint64, error)
 	GetUserByEmail(ctx context.Context, email string) (*model.User, error)
 	GetUserByID(ctx context.Context, id uint64) (*model.User, error)
@@ -33,23 +38,21 @@ type AuthStore interface {
 	DeleteRefreshToken(ctx context.Context, tokenHash string) error
 	DeleteUserRefreshTokens(ctx context.Context, userID uint64) error
 
-	Close()
 }
 
 type AnalyticsStore interface {
+	Closer
 	SaveAnalyticsEvent(ctx context.Context, event *model.AnalyticsEvent) error
 
 // 	// GetAnalyticsEvents - retrieve raw events for aggregation
 // 	// TODO: SELECT from analytics WHERE link_id = ? AND clicked_at BETWEEN ? AND ?
 // 	// TODO: return slice of AnalyticsEvent
-	GetAnalyticsEvents(ctx context.Context, linkID uint64, startDate, endDate time.Time) ([]*model.AnalyticsEvent, error)
+	GetAnalyticsEvents(ctx context.Context, linkID uint64, startDate, endDate time.Time)
 
 // 	// GetUserLinksWithStats - get user's links with click counts
 // 	// TODO: SELECT links with JOIN to analytics for total_clicks count
 // 	// TODO: return slice of LinkWithStats
 // 	GetUserLinksWithStats(ctx context.Context, userID uint64) ([]*model.LinkWithStats, error)
-
-	Close()
 }
 
 type PostgresStore struct {
@@ -298,7 +301,7 @@ func (s *PostgresStore) SaveAnalyticsEvent(ctx context.Context, event *model.Ana
 	return nil
 }
 
-func (s *PostgresStore) GetAnalyticsEvents(ctx context.Context, linkID string, startDate time.Time, endDate time.Time) {
+func (s *PostgresStore) GetAnalyticsEvents(ctx context.Context, linkID uint64, startDate time.Time, endDate time.Time) {
 	// sql query for all records in analytics where linkid == linkid and clicked_at between startdate and enddate
 	// return all records of *model.AnalyticsEvent belongign to linkid
 }
