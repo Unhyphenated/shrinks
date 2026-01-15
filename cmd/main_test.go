@@ -14,6 +14,8 @@ import (
 	"github.com/Unhyphenated/shrinks-backend/internal/encoding"
 	"github.com/Unhyphenated/shrinks-backend/internal/model"
 	"github.com/Unhyphenated/shrinks-backend/internal/service"
+	"github.com/Unhyphenated/shrinks-backend/internal/storage"
+	"github.com/Unhyphenated/shrinks-backend/internal/cache"
 )
 
 
@@ -21,19 +23,19 @@ type MockConfig struct {
     SaveLinkFn func(ctx context.Context, longURL string, userID *uint64) (string, error)
 }
 
-func newMockStore(cfg MockConfig) *service.MockStore {
+func newMockStore(cfg MockConfig) *storage.MockStore {
     // Default implementation for methods not being tested
     defaultGetFn := func(ctx context.Context, shortURL string) (*model.Link, error) { return nil, nil }
 
-    return &service.MockStore{
+    return &storage.MockStore{
         SaveLinkFn:         cfg.SaveLinkFn,
         GetLinkByCodeFn:    defaultGetFn,
         CloseFn:            func() {},
     }
 }
 
-func newMockCache() *service.MockCache {
-    return &service.MockCache{
+func newMockCache() *cache.MockCache {
+    return &cache.MockCache{
         GetFn: func(ctx context.Context, key string) (string, error) {
             return "", nil // Default: cache miss (empty string)
         },
