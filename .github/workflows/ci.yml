@@ -19,7 +19,7 @@ jobs:
                 go-version: '1.22'
 
             - name: Run Unit and E2E Tests (Skipping DB)
-              run: go test -v ./cmd ./internal/encoding 
+              run: go test -v $(go list ./... | grep -v /storage | grep -v /analytics | grep -v /auth)
         
             - name: Build Application
               run: go build -v -o app ./cmd
