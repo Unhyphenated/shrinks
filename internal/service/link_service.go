@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"time"
@@ -10,6 +11,10 @@ import (
 	"github.com/Unhyphenated/shrinks-backend/internal/cache"
 	"github.com/Unhyphenated/shrinks-backend/internal/model"
 	"github.com/Unhyphenated/shrinks-backend/internal/storage"
+)
+
+var (
+	ErrLinkNotFound = errors.New("link not found")
 )
 
 type LinkService struct {
@@ -37,7 +42,7 @@ func (ls *LinkService) Redirect(ctx context.Context, shortCode string, event *mo
 	// Check if link is in cache
 	longURL, err := ls.Cache.Get(ctx, shortCode)
 	if err != nil {
-		log.Printf("Cache error (falling back to DB): %v", err)
+		log.Printf("cache error (falling back to DB): %v", err)
 	}
 
 	if longURL != "" {
@@ -50,13 +55,13 @@ func (ls *LinkService) Redirect(ctx context.Context, shortCode string, event *mo
 	}
 
 	if link == nil {
-		return "", fmt.Errorf("link not found")
+		return "", ErrLinkNotFound
 	}
 
 	if ls.Cache != nil {
 		go func() {
 			if err := ls.Cache.Set(context.Background(), shortCode, link.LongURL, 24*time.Hour); err != nil {
-				log.Printf("Failed to cache link: %v", err)
+				log.Printf("failed to cache link: %v", err)
 			}
 		}()
 	}
@@ -66,7 +71,7 @@ func (ls *LinkService) Redirect(ctx context.Context, shortCode string, event *mo
 
 	go func() {
 		if err := ls.AnalyticsService.RecordEvent(context.Background(), event); err != nil {
-			log.Printf("Failed to record analytics event: %v", err)
+			log.Printf("failed to record analytics event: %v", err)
 		}
 	}()
 
