@@ -38,6 +38,7 @@ func RequireAuth(next http.Handler) http.Handler {
 		tokenString, err := extractToken(r)
 		if err != nil {
 			http.Error(w, "Unauthorized: " + err.Error(), http.StatusUnauthorized)
+			return
 		}
 
 		claims, err := ValidateToken(tokenString)
