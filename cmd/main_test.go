@@ -36,10 +36,10 @@ func newMockStore(cfg MockConfig) *storage.MockStore {
 
 func newMockCache() *cache.MockCache {
     return &cache.MockCache{
-        GetFn: func(ctx context.Context, key string) (string, error) {
-            return "", nil // Default: cache miss (empty string)
+        GetFn: func(ctx context.Context, key string) (*model.Link, error) {
+            return nil, nil // Default: cache miss (empty string)
         },
-        SetFn: func(ctx context.Context, key string, val string, expiration time.Duration) error {
+        SetFn: func(ctx context.Context, key string, val *model.Link, expiration time.Duration) error {
             return nil // Default: no-op
         },
         CloseFn: func() {},

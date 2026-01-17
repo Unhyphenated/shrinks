@@ -48,11 +48,11 @@ type RefreshTokenResponse struct {
 
 // Link Models
 type Link struct {
-	ID        uint64    `db:"id"`
-	UserID    *uint64   `db:"user_id"`
-	ShortCode string    `db:"short_code"`
-	LongURL   string    `db:"long_url"`
-	CreatedAt time.Time `db:"created_at"`
+    ID        uint64    `db:"id" redis:"id"`
+    UserID    *uint64   `db:"user_id" redis:"user_id"`
+    ShortCode string    `db:"short_code" redis:"short_code"`
+    LongURL   string    `db:"long_url" redis:"long_url"`
+    CreatedAt time.Time `db:"created_at" redis:"created_at"`
 }
 
 type CreateLinkRequest struct {
