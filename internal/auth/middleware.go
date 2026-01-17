@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"context"
 
+	"github.com/Unhyphenated/shrinks-backend/internal/util"
 )
 
 type contextKey string
@@ -37,13 +38,13 @@ func RequireAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		tokenString, err := extractToken(r)
 		if err != nil {
-			http.Error(w, "Unauthorized: " + err.Error(), http.StatusUnauthorized)
+			util.WriteError(w, http.StatusUnauthorized, "Unauthorized: " + err.Error())
 			return
 		}
 
 		claims, err := ValidateToken(tokenString)
 		if err != nil {
-			http.Error(w, "Unauthorized: Invalid token", http.StatusUnauthorized)
+			util.WriteError(w, http.StatusUnauthorized, "Unauthorized: " + err.Error())
 			return
 		}
 
