@@ -16,7 +16,7 @@ jobs:
             - name: Set up Go 
               uses: actions/setup-go@v5 
               with:
-                go-version: '1.22'
+                go-version: '1.24'
 
             - name: Run Unit and E2E Tests (Skipping DB)
               run: go test -v $(go list ./... | grep -v /storage | grep -v /analytics | grep -v /auth)
