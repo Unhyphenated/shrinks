@@ -59,7 +59,7 @@ func createTestLink(t *testing.T, userID *uint64) *model.Link {
 }
 
 // Helper: cleanup
-func cleanup(t *testing.T, email string) {
+func cleanup(email string) {
 	ctx := context.Background()
 	_, _ = testStore.Pool.Exec(ctx, `
 		DELETE FROM analytics WHERE link_id IN (
@@ -79,7 +79,9 @@ func TestRecordEvent_Success(t *testing.T) {
 
 	ctx := context.Background()
 	email := "record-event-test@example.com"
-	defer cleanup(t, email)
+	defer func() {
+		cleanup(email)
+	}()
 
 	userID := createTestUser(t, email)
 	link := createTestLink(t, &userID)
@@ -114,7 +116,9 @@ func TestRetrieveAnalytics_AggregatesCorrectly(t *testing.T) {
 
 	ctx := context.Background()
 	email := "aggregate-test@example.com"
-	defer cleanup(t, email)
+	defer func() {
+		cleanup(email)
+	}()
 
 	userID := createTestUser(t, email)
 	link := createTestLink(t, &userID)
@@ -148,7 +152,9 @@ func TestRetrieveAnalytics_GroupsByDevice(t *testing.T) {
 
 	ctx := context.Background()
 	email := "device-group-test@example.com"
-	defer cleanup(t, email)
+	defer func() {
+		cleanup(email)
+	}()
 
 	userID := createTestUser(t, email)
 	link := createTestLink(t, &userID)
@@ -193,7 +199,9 @@ func TestRetrieveAnalytics_GroupsByDate(t *testing.T) {
 
 	ctx := context.Background()
 	email := "date-group-test@example.com"
-	defer cleanup(t, email)
+	defer func() {
+		cleanup(email)
+	}()
 
 	userID := createTestUser(t, email)
 	link := createTestLink(t, &userID)
@@ -235,7 +243,9 @@ func TestRetrieveAnalytics_GroupsByBrowser(t *testing.T) {
 
 	ctx := context.Background()
 	email := "browser-group-test@example.com"
-	defer cleanup(t, email)
+	defer func() {
+		cleanup(email)
+	}()
 
 	userID := createTestUser(t, email)
 	link := createTestLink(t, &userID)
@@ -275,7 +285,9 @@ func TestRetrieveAnalytics_GroupsByOS(t *testing.T) {
 
 	ctx := context.Background()
 	email := "os-group-test@example.com"
-	defer cleanup(t, email)
+	defer func() {
+		cleanup(email)
+	}()
 
 	userID := createTestUser(t, email)
 	link := createTestLink(t, &userID)
@@ -315,7 +327,9 @@ func TestRetrieveAnalytics_UniqueVisitors(t *testing.T) {
 
 	ctx := context.Background()
 	email := "unique-visitors-test@example.com"
-	defer cleanup(t, email)
+	defer func() {
+		cleanup(email)
+	}()
 
 	userID := createTestUser(t, email)
 	link := createTestLink(t, &userID)
@@ -354,7 +368,9 @@ func TestRetrieveAnalytics_EmptyForNoEvents(t *testing.T) {
 
 	ctx := context.Background()
 	email := "empty-analytics-test@example.com"
-	defer cleanup(t, email)
+	defer func() {
+		cleanup(email)
+	}()
 
 	userID := createTestUser(t, email)
 	link := createTestLink(t, &userID)
