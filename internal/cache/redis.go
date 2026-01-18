@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/Unhyphenated/shrinks-backend/internal/model"
 	"github.com/redis/go-redis/v9"
 )
 
 type Cache interface {
-	Get(ctx context.Context, key string) (string, error)
-	Set(ctx context.Context, key string, val string, expiration time.Duration) error
+	Get(ctx context.Context, key string) (*model.Link, error)
+	Set(ctx context.Context, key string, val *model.Link, expiration time.Duration) error
 	Close()
 }
 
@@ -36,22 +37,33 @@ func NewRedisCache(redisURL string) (*RedisCache, error) {
 	return &RedisCache{Client: client}, nil
 }
 
-func (c *RedisCache) Get(ctx context.Context, key string) (string, error) {
-	val, err := c.Client.Get(ctx, key).Result()
-	if err == redis.Nil {
-		return "", nil
-	} else if err != nil {
-		return "", fmt.Errorf("failed to get value from Redis: %w", err)
+func (c *RedisCache) Get(ctx context.Context, key string) (*model.Link, error) {
+	res := c.Client.HGetAll(ctx, key)
+	if err := res.Err(); err != nil {
+		return nil, fmt.Errorf("failed to get value from Redis: %w", err)
 	}
 
-	return val, nil
+	if len(res.Val()) == 0 {
+        return nil, nil
+    }
+
+	var link model.Link
+    if err := res.Scan(&link); err != nil {
+        return nil, fmt.Errorf("failed to scan redis hash: %w", err)
+    }
+
+    return &link, nil
 }
 
-func (c *RedisCache) Set(ctx context.Context, key string, val string, expiration time.Duration) error {
-	err := c.Client.Set(ctx, key, val, expiration).Err()
-	if err != nil {
-		return fmt.Errorf("failed to set value in Redis: %w", err)
-	}
+func (c *RedisCache) Set(ctx context.Context, key string, link *model.Link, expiration time.Duration) error {
+	pipe := c.Client.Pipeline()
+	pipe.HSet(ctx, key, link)
+	pipe.Expire(ctx, key, expiration)
+
+	_, err := pipe.Exec(ctx)
+    if err != nil {
+        return fmt.Errorf("failed to set cache with expiration: %w", err)
+    }
 	return nil
 }
 

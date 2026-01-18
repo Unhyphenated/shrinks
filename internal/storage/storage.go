@@ -14,15 +14,24 @@ import (
 
 var (
 	ErrUniqueViolation = errors.New("unique violation")
+	ErrLinkNotFound = errors.New("link not found")
+	ErrNotOwner = errors.New("not owner")
 )
 
-type LinkStore interface {
-	SaveLink(ctx context.Context, longURL string, userID *uint64) (string, error)
-    GetLinkByCode(ctx context.Context, code string) (*model.Link, error)
+type Closer interface {
     Close()
 }
 
+type LinkStore interface {
+	Closer
+	SaveLink(ctx context.Context, longURL string, userID *uint64) (string, error)
+	GetLinkByCode(ctx context.Context, code string) (*model.Link, error)
+	GetUserLinks(ctx context.Context, userID uint64, limit int, offset int) ([]model.Link, int, error)
+	DeleteLink(ctx context.Context, shortCode string, userID uint64) error
+}
+
 type AuthStore interface {
+	Closer
 	CreateUser(ctx context.Context, email string, passwordHash string) (uint64, error)
 	GetUserByEmail(ctx context.Context, email string) (*model.User, error)
 	GetUserByID(ctx context.Context, id uint64) (*model.User, error)
@@ -32,8 +41,12 @@ type AuthStore interface {
 	GetRefreshToken(ctx context.Context, tokenHash string) (*model.RefreshToken, error)
 	DeleteRefreshToken(ctx context.Context, tokenHash string) error
 	DeleteUserRefreshTokens(ctx context.Context, userID uint64) error
+}
 
-	Close()
+type AnalyticsStore interface {
+	Closer
+	SaveAnalyticsEvent(ctx context.Context, event *model.AnalyticsEvent) error
+	GetAnalyticsEvents(ctx context.Context, linkID uint64, period time.Time) ([]*model.AnalyticsEvent, error)
 }
 
 type PostgresStore struct {
@@ -42,63 +55,52 @@ type PostgresStore struct {
 
 // NewPostgresStore initializes the Postgres database connection pool.
 func NewPostgresStore(dbURL string) (*PostgresStore, error) {
-    ctx := context.Background() 
-    
-    // pgxpool.New uses the URL and sets up the pool based on defaults (or config)
-    pool, err := pgxpool.New(ctx, dbURL)
-    if err != nil {
-        return nil, fmt.Errorf("failed to create connection pool: %w", err)
-    }
+	ctx := context.Background()
 
-    // Ping the database using the pool's health check
-    if err := pool.Ping(ctx); err != nil {
-        pool.Close()
-        return nil, fmt.Errorf("failed to ping database: %w", err)
-    }
-    
-    fmt.Println("Successfully initialized Postgres Connection Pool!")
+	// pgxpool.New uses the URL and sets up the pool based on defaults (or config)
+	pool, err := pgxpool.New(ctx, dbURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create connection pool: %w", err)
+	}
+
+	// Ping the database using the pool's health check
+	if err := pool.Ping(ctx); err != nil {
+		pool.Close()
+		return nil, fmt.Errorf("failed to ping database: %w", err)
+	}
+
+	fmt.Println("Successfully initialized Postgres Connection Pool!")
 	return &PostgresStore{Pool: pool}, nil
 }
 
 func (s *PostgresStore) Close() {
-    s.Pool.Close()
+	s.Pool.Close()
 }
 
 func (s *PostgresStore) SaveLink(ctx context.Context, longURL string, userID *uint64) (string, error) {
-	tx, err := s.Pool.Begin(ctx)
-	if err != nil {
-		return "", fmt.Errorf("failed to start transaction: %w", err)
-	}
-	defer tx.Rollback(ctx) 
+    var shortCode string
+    
+    var nextID uint64
+    err := s.Pool.QueryRow(ctx, "SELECT nextval('links_id_seq')").Scan(&nextID)
+    if err != nil {
+        return "", err
+    }
 
-	var generatedID uint64
-	insertQuery := `
-		INSERT INTO links (long_url, short_code, user_id) 
-		VALUES ($1, '', $2)
-		RETURNING id;
-	`
-	err = tx.QueryRow(ctx, insertQuery, longURL, userID).Scan(&generatedID)
-	if err != nil {
-		return "", fmt.Errorf("transaction insert failed: %w", err)
-	}
+    // 2. Generate the code in Go
+    shortCode = encoding.Encode(nextID)
 
-	shortCode := encoding.Encode(generatedID) 
+    // 3. Insert the full record
+    // Note: userID (as *uint64) will be NULL in DB if the pointer is nil
+    insertQuery := `
+        INSERT INTO links (id, long_url, short_code, user_id) 
+        VALUES ($1, $2, $3, $4);
+    `
+    _, err = s.Pool.Exec(ctx, insertQuery, nextID, longURL, shortCode, userID)
+    if err != nil {
+        return "", fmt.Errorf("failed to insert link: %w", err)
+    }
 
-	updateQuery := `
-		UPDATE links 
-		SET short_code = $1 
-		WHERE id = $2;
-	`
-	_, err = tx.Exec(ctx, updateQuery, shortCode, generatedID)
-	if err != nil {
-		return "", fmt.Errorf("transaction update failed: %w", err)
-	}
-
-	if err := tx.Commit(ctx); err != nil {
-		return "", fmt.Errorf("transaction commit failed: %w", err)
-	}
-
-	return shortCode, nil
+    return shortCode, nil
 }
 
 func (s *PostgresStore) GetLinkByCode(ctx context.Context, shortCode string) (*model.Link, error) {
@@ -117,14 +119,14 @@ func (s *PostgresStore) GetLinkByCode(ctx context.Context, shortCode string) (*m
 	)
 
 	if err != nil {
-        // Handle the specific, common case where the code isn't in the database.
-        if err == pgx.ErrNoRows {
-            return nil, nil // Return nil link and nil error for "not found"
-        }
-	        return nil, fmt.Errorf("error querying link by code: %w", err)
-    }
+		// Handle the specific, common case where the code isn't in the database.
+		if err == pgx.ErrNoRows {
+			return nil, nil // Return nil link and nil error for "not found"
+		}
+		return nil, fmt.Errorf("error querying link by code: %w", err)
+	}
 
-    return link, nil
+	return link, nil
 }
 
 func (s *PostgresStore) CreateUser(ctx context.Context, email string, passwordHash string) (uint64, error) {
@@ -171,8 +173,8 @@ func (s *PostgresStore) GetUserByEmail(ctx context.Context, email string) (*mode
 
 	if err != nil {
 		if err == pgx.ErrNoRows {
-            return nil, nil // Return nil link and nil error for "not found"
-        }
+			return nil, nil // Return nil link and nil error for "not found"
+		}
 		return nil, fmt.Errorf("error querying user by email: %w", err)
 	}
 
@@ -196,14 +198,13 @@ func (s *PostgresStore) GetUserByID(ctx context.Context, id uint64) (*model.User
 
 	if err != nil {
 		if err == pgx.ErrNoRows {
-            return nil, nil // Return nil link and nil error for "not found"
-        }
+			return nil, nil // Return nil link and nil error for "not found"
+		}
 		return nil, fmt.Errorf("error querying user by id: %w", err)
 	}
 
 	return user, nil
 }
-
 
 func (s *PostgresStore) CreateRefreshToken(ctx context.Context, userID uint64, tokenHash string, expiresAt time.Time) error {
 	query := `
@@ -213,7 +214,7 @@ func (s *PostgresStore) CreateRefreshToken(ctx context.Context, userID uint64, t
 
 	_, err := s.Pool.Exec(ctx, query, userID, tokenHash, expiresAt)
 	if err != nil {
-		return fmt.Errorf("Failed to create refresh token: %w", err)
+		return fmt.Errorf("failed to create refresh token: %w", err)
 	}
 
 	return nil
@@ -229,17 +230,17 @@ func (s *PostgresStore) GetRefreshToken(ctx context.Context, tokenHash string) (
 
 	err := s.Pool.QueryRow(ctx, query, tokenHash).Scan(
 		&token.ID,
-        &token.UserID,
-        &token.TokenHash,
-        &token.ExpiresAt,
-        &token.CreatedAt,
+		&token.UserID,
+		&token.TokenHash,
+		&token.ExpiresAt,
+		&token.CreatedAt,
 	)
 
 	if err != nil {
 		if err == pgx.ErrNoRows {
-            return nil, nil // Not found
-        }
-		return nil, fmt.Errorf("Error querying refresh token: %w", err)
+			return nil, nil // Not found
+		}
+		return nil, fmt.Errorf("error querying refresh token: %w", err)
 	}
 	return token, nil
 }
@@ -270,4 +271,135 @@ func (s *PostgresStore) DeleteUserRefreshTokens(ctx context.Context, userID uint
 	}
 
 	return nil
+}
+
+func (s *PostgresStore) SaveAnalyticsEvent(ctx context.Context, event *model.AnalyticsEvent) error {
+	query := `
+		INSERT INTO analytics (link_id, ip_address, user_agent, device_type, browser, os, clicked_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+	`
+
+	_, err := s.Pool.Exec(ctx, query,
+		event.LinkID,
+		event.IPAddress,
+		event.UserAgent,
+		event.DeviceType,
+		event.Browser,
+		event.OS,
+		event.ClickedAt,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to save analytics event: %w", err)
+	}
+
+	return nil
+}
+
+func (s *PostgresStore) GetAnalyticsEvents(ctx context.Context, linkID uint64, period time.Time) ([]*model.AnalyticsEvent, error) {
+	query := `
+		SELECT id, link_id, ip_address::text, user_agent, device_type, browser, os, clicked_at
+		FROM analytics
+		WHERE link_id = $1 AND clicked_at > $2
+	`
+	rows, err := s.Pool.Query(ctx, query, linkID, period)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get analytics events: %w", err)
+	}
+
+	defer rows.Close()
+
+	events := []*model.AnalyticsEvent{}
+	for rows.Next() {
+		var event model.AnalyticsEvent
+		err := rows.Scan(
+			&event.ID,
+			&event.LinkID,
+			&event.IPAddress,
+			&event.UserAgent,
+			&event.DeviceType,
+			&event.Browser,
+			&event.OS,
+			&event.ClickedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan analytics event: %w", err)
+		}
+		events = append(events, &event)
+	}
+	return events, nil
+}
+
+func (s *PostgresStore) DeleteLink(ctx context.Context, shortCode string, userID uint64) error {
+	link, err := s.GetLinkByCode(ctx, shortCode)
+	if err != nil {
+		return fmt.Errorf("failed to get link by code: %w", err)
+	}
+	if link == nil {
+		return ErrLinkNotFound
+	}
+	if link.UserID != nil && *link.UserID != userID {
+		return ErrLinkNotFound
+	}
+
+	query := `
+		DELETE FROM links
+		WHERE short_code = $1 and user_id = $2
+	`
+	_, err = s.Pool.Exec(ctx, query, shortCode, userID)
+	if err != nil {
+		return fmt.Errorf("failed to delete link: %w", err)
+	}
+
+	// Remove all analytics events for the link
+	query = `
+		DELETE FROM analytics
+		WHERE link_id IN (SELECT id FROM links WHERE short_code = $1 and user_id = $2)
+	`
+	_, err = s.Pool.Exec(ctx, query, shortCode, userID)
+	if err != nil {
+		return fmt.Errorf("failed to delete analytics events: %w", err)
+	}
+
+	return nil
+}
+
+func (s *PostgresStore) GetUserLinks(ctx context.Context, userID uint64, limit int, offset int) ([]model.Link, int, error) {
+	query := `
+		WITH total AS (
+			SELECT count(*) as amount FROM links WHERE user_id = $1
+		)
+		SELECT id, user_id, long_url, short_code, created_at, total.amount
+		FROM links, total
+		WHERE user_id = $1
+		ORDER BY created_at desc
+		LIMIT $2 OFFSET $3
+	`
+
+	rows, err := s.Pool.Query(ctx, query, userID, limit, offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to get user links: %w", err)
+	}
+
+	defer rows.Close()
+
+	links := []model.Link{}
+	total := 0
+
+	for rows.Next() {
+		var link model.Link
+		err := rows.Scan(
+			&link.ID,
+			&link.UserID,
+			&link.LongURL,
+			&link.ShortCode,
+			&link.CreatedAt,
+			&total,
+		)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to scan link: %w", err)
+		}
+		links = append(links, link)
+	}
+
+	return links, total, nil
 }

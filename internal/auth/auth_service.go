@@ -19,7 +19,16 @@ var (
 	ErrUserAlreadyExists = errors.New("user already exists")
 	ErrInvalidRefreshToken = errors.New("invalid refresh token")
     ErrRefreshTokenExpired = errors.New("refresh token has expired")
+	ErrRefreshTokenNotFound = errors.New("refresh token not found")
+	ErrDeletingRefreshToken = errors.New("failed to delete refresh token")
 )
+
+type AuthProvider interface {
+	Register(ctx context.Context, email string, password string) (model.RegisterResponse, error)
+	Login(ctx context.Context, email string, password string) (model.AuthResponse, error)
+    RefreshAccessToken(ctx context.Context, refreshToken string) (model.RefreshTokenResponse, error)
+    Logout(ctx context.Context, refreshToken string) error
+}
 
 type AuthService struct {
 	Store storage.AuthStore
@@ -140,3 +149,22 @@ func (as *AuthService) RefreshAccessToken(ctx context.Context, refreshToken stri
 		AccessToken: accessToken,
 	}, nil
 }	
+
+func (as *AuthService) Logout(ctx context.Context, refreshToken string) error {
+	tokenHash := HashRefreshToken(refreshToken)
+	token, err := as.Store.GetRefreshToken(ctx, tokenHash)
+	
+	if err != nil {
+		return errors.New("failure to get refresh token")
+	}
+
+	if token == nil {
+		return ErrRefreshTokenNotFound
+	}
+
+	if err := as.Store.DeleteRefreshToken(ctx, tokenHash); err != nil {
+		return ErrDeletingRefreshToken
+	}
+
+	return nil
+}

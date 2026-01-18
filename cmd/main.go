@@ -7,7 +7,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strings"
 
 	"github.com/Unhyphenated/shrinks-backend/internal/auth"
 	"github.com/Unhyphenated/shrinks-backend/internal/cache"
@@ -15,18 +14,23 @@ import (
 	"github.com/Unhyphenated/shrinks-backend/internal/service"
 	"github.com/Unhyphenated/shrinks-backend/internal/storage"
 	"github.com/Unhyphenated/shrinks-backend/internal/util"
+	"github.com/Unhyphenated/shrinks-backend/internal/analytics"
 	"github.com/joho/godotenv"
 )
 
 func main() {
 	_ = godotenv.Load()
 
-	// Create PostgresStore
+	// Create PostgresStore & RedisCache
 	dbURL := os.Getenv("DATABASE_URL")
 	redisURL := os.Getenv("REDIS_URL")
 
 	if dbURL == "" {
 		log.Fatal("DATABASE_URL environment variable is not set. Cannot connect to Postgres.")
+	}
+
+	if redisURL == "" {
+		log.Fatal("REDIS_URL environment variable is not set. Cannot connect to Redis.")
 	}
 
 	store, err := storage.NewPostgresStore(dbURL)
@@ -42,10 +46,10 @@ func main() {
 	}
 	defer cache.Close()
 
-	linkService := service.NewLinkService(store, cache)
+	analyticsService := analytics.NewAnalyticsService(store)
+	linkService := service.NewLinkService(store, cache, analyticsService)
 	authService := auth.NewAuthService(store)
 
-	// Simple HTTP server setup
 	mux := http.NewServeMux()
 
 	mux.Handle("POST /api/v1/links/shorten", auth.OptionalAuth(handlerShorten(linkService)))
@@ -53,8 +57,12 @@ func main() {
 
 	mux.HandleFunc("POST /api/v1/auth/register", handlerRegister(authService))
 	mux.HandleFunc("POST /api/v1/auth/login", handlerLogin(authService))
-	
 	mux.HandleFunc("POST /api/v1/auth/refresh", handlerRefresh(authService))
+	mux.Handle("POST /api/v1/auth/logout", auth.RequireAuth(handlerLogout(authService)))
+
+	mux.Handle("GET /api/v1/analytics/{shortCode}", auth.RequireAuth(handlerLinkAnalytics(analyticsService, linkService)))
+
+	mux.HandleFunc("GET /health", handlerHealth())
 
 	fmt.Println("Server starting on :8080")
 
@@ -62,11 +70,9 @@ func main() {
 	if err != nil {
 		log.Fatalf("Server failed to start: %v", err)
 	}
-
-	log.Println("Application is ready to serve requests.")
 }
 
-func handlerRegister(svc *auth.AuthService) http.HandlerFunc {
+func handlerRegister(svc auth.AuthProvider) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req model.RegisterRequest
 
@@ -107,7 +113,7 @@ func handlerRegister(svc *auth.AuthService) http.HandlerFunc {
 	}
 }
 
-func handlerLogin(svc *auth.AuthService) http.HandlerFunc {
+func handlerLogin(svc auth.AuthProvider) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req model.LoginRequest
 
@@ -144,8 +150,34 @@ func handlerLogin(svc *auth.AuthService) http.HandlerFunc {
 	}
 }
 
-func handlerRefresh(svc *auth.AuthService) http.HandlerFunc {
-	return func (w http.ResponseWriter, r *http.Request) {
+func handlerLogout(svc auth.AuthProvider) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req model.LogoutRequest 
+
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			util.WriteError(w, http.StatusBadRequest, "Invalid request payload")
+			return
+		}
+
+		err := svc.Logout(r.Context(), req.RefreshToken)
+		if err != nil {
+			switch {
+			case errors.Is(err, auth.ErrInvalidRefreshToken):
+				util.WriteError(w, http.StatusUnauthorized, "Invalid refresh token")
+			case errors.Is(err, auth.ErrRefreshTokenExpired):
+				util.WriteError(w, http.StatusUnauthorized, "Refresh token has expired")
+			default:
+				log.Printf("Logout error: %v", err)
+				util.WriteError(w, http.StatusInternalServerError, "Failed to logout")
+			}
+			return
+		}
+		util.WriteJSON(w, http.StatusOK, "Logged out successfully")
+	}
+} 
+
+func handlerRefresh(svc auth.AuthProvider) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 		var req model.RefreshTokenRequest
 
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -172,12 +204,11 @@ func handlerRefresh(svc *auth.AuthService) http.HandlerFunc {
 			return
 		}
 
-
 		util.WriteJSON(w, http.StatusOK, refreshResp)
 	}
 }
 
-func handlerShorten(svc *service.LinkService) http.HandlerFunc {
+func handlerShorten(svc service.LinkProvider) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req model.CreateLinkRequest
 
@@ -191,7 +222,7 @@ func handlerShorten(svc *service.LinkService) http.HandlerFunc {
 			return
 		}
 
-		var userID *uint64 
+		var userID *uint64
 		claims, ok := auth.GetClaimsFromContext(r.Context())
 		if ok {
 			userID = &claims.UserID
@@ -213,22 +244,127 @@ func handlerShorten(svc *service.LinkService) http.HandlerFunc {
 	}
 }
 
-func handlerRedirect(svc *service.LinkService) http.HandlerFunc {
+func handlerRedirect(svc service.LinkProvider) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		path := r.URL.Path
-		shortCode := strings.TrimPrefix(path, "/api/v1/links")
+		ua := util.ParseUserAgent(r.Header.Get("User-Agent"))
+		ip := util.GetIP(r.Header.Get("X-Forwarded-For"), r.RemoteAddr)
+		
+		event := &model.AnalyticsEvent{
+			IPAddress:  util.AnonymizeIP(ip),
+			DeviceType: ua.DeviceType,
+			Browser:    ua.Browser,
+			OS:         ua.OS,
+			UserAgent:  r.Header.Get("User-Agent"),
+    	}
 
+		shortCode := r.PathValue("shortCode")
+	
 		if shortCode == "" {
 			util.WriteError(w, http.StatusBadRequest, "Short URL code is required")
 			return
 		}
 
-		longURL, err := svc.Redirect(r.Context(), shortCode)
+		longURL, err := svc.Redirect(r.Context(), shortCode, event)
 		if err != nil {
 			util.WriteError(w, http.StatusNotFound, "Link not found")
 			return
 		}
 
 		http.Redirect(w, r, longURL, http.StatusFound)
+	}
+}
+
+func handlerLinkAnalytics(analyticsService analytics.AnalyticsProvider, linkService service.LinkProvider) http.HandlerFunc {
+return func(w http.ResponseWriter, r *http.Request) {
+claims, ok := auth.GetClaimsFromContext(r.Context())
+if !ok {
+util.WriteError(w, http.StatusUnauthorized, "Unauthorized")
+return
+}
+
+shortCode := r.PathValue("shortCode")
+period := r.URL.Query().Get("period")
+if period == "" {
+period = "30d"
+}
+
+link, err := linkService.GetLinkByCode(r.Context(), shortCode)
+if err != nil {
+util.WriteError(w, http.StatusInternalServerError, "Failed to get link")
+return
+}
+
+if link == nil {
+util.WriteError(w, http.StatusNotFound, "Link not found")
+return
+}
+
+// Check ownership
+if link.UserID == nil || *link.UserID != claims.UserID {
+util.WriteError(w, http.StatusForbidden, "Not authorized to view analytics for this link")
+return
+}
+
+analyticsSummary, err := analyticsService.RetrieveAnalytics(r.Context(), link.ID, period)
+if err != nil {
+util.WriteError(w, http.StatusInternalServerError, "Failed to retrieve analytics")
+return
+}
+util.WriteJSON(w, http.StatusOK, analyticsSummary)
+}
+}
+func handlerListLinks(linkService service.LinkProvider) http.HandlerFunc {
+return func(w http.ResponseWriter, r *http.Request) {
+claims, ok := auth.GetClaimsFromContext(r.Context())
+if !ok {
+util.WriteError(w, http.StatusUnauthorized, "Unauthorized")
+return
+}
+
+links, total, err := linkService.GetUserLinks(r.Context(), claims.UserID, 10, 0)
+if err != nil {
+util.WriteError(w, http.StatusInternalServerError, "Failed to list links")
+return
+}
+util.WriteJSON(w, http.StatusOK, map[string]interface{}{
+"links": links,
+"total": total,
+})
+}
+}
+
+func handlerDeleteLink(linkService service.LinkProvider) http.HandlerFunc {
+return func(w http.ResponseWriter, r *http.Request) {
+claims, ok := auth.GetClaimsFromContext(r.Context())
+if !ok {
+util.WriteError(w, http.StatusUnauthorized, "Unauthorized")
+return
+}
+
+shortCode := r.PathValue("shortCode")
+err := linkService.DeleteLink(r.Context(), shortCode, claims.UserID)
+if err != nil {
+switch {
+case errors.Is(err, service.ErrNotOwner):
+util.WriteError(w, http.StatusForbidden, "Not authorized to delete this link")
+case errors.Is(err, service.ErrLinkNotFound):
+util.WriteError(w, http.StatusNotFound, "Link not found")
+case errors.Is(err, storage.ErrNotOwner):
+util.WriteError(w, http.StatusForbidden, "Not authorized to delete this link")
+case errors.Is(err, storage.ErrLinkNotFound):
+util.WriteError(w, http.StatusNotFound, "Link not found")
+default:
+log.Printf("Delete link error: %v", err)
+util.WriteError(w, http.StatusInternalServerError, "Failed to delete link")
+}
+return
+}
+w.WriteHeader(http.StatusNoContent)
+}
+}
+
+func handlerHealth() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		util.WriteJSON(w, http.StatusOK, "OK")
 	}
 }
