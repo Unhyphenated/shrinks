@@ -78,7 +78,6 @@ type AnalyticsEvent struct {
 
 type AnalyticsSummary struct {
 	LinkID uint64 `db:"link_id"`
-	ShortCode string `db:"short_code"`
 	Period string `db:"period"`
 	TotalClicks int `db:"total_clicks"`
 	UniqueVisitors int `db:"unique_visitors"`
@@ -89,7 +88,7 @@ type AnalyticsSummary struct {
 }
 
 type ClicksByDate struct {
-	Date time.Time `db:"date"`
+	Date string `db:"date"`
 	Clicks int `db:"clicks"`
 }
 
