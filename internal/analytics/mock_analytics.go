@@ -9,6 +9,7 @@ import (
 type MockAnalytics struct {
 	RecordEventFn func(ctx context.Context, event *model.AnalyticsEvent) error
 	RetrieveAnalyticsFn func(ctx context.Context, linkID uint64, period string) (*model.AnalyticsSummary, error)
+	
 }
 
 // Ensure MockAnalytics implements AnalyticsProvider interface

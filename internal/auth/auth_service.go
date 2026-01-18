@@ -23,6 +23,13 @@ var (
 	ErrDeletingRefreshToken = errors.New("failed to delete refresh token")
 )
 
+type AuthProvider interface {
+	Register(ctx context.Context, email string, password string) (model.RegisterResponse, error)
+	Login(ctx context.Context, email string, password string) (model.AuthResponse, error)
+    RefreshAccessToken(ctx context.Context, refreshToken string) (model.RefreshTokenResponse, error)
+    Logout(ctx context.Context, refreshToken string) error
+}
+
 type AuthService struct {
 	Store storage.AuthStore
 }
