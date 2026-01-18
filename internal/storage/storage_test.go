@@ -136,9 +136,8 @@ func TestGetAnalyticsEvents_ReturnsEventsInDateRange(t *testing.T) {
 
 	// Query last 3 days (should get 2 events)
 	startDate := now.Add(-3 * 24 * time.Hour)
-	endDate := now.Add(time.Hour)
 
-	results, err := testStore.GetAnalyticsEvents(ctx, link.ID, startDate, endDate)
+	results, err := testStore.GetAnalyticsEvents(ctx, link.ID, startDate)
 	if err != nil {
 		t.Fatalf("GetAnalyticsEvents failed: %v", err)
 	}
@@ -159,7 +158,7 @@ func TestGetAnalyticsEvents_EmptyForNoClicks(t *testing.T) {
 
 	// No events created
 
-	results, err := testStore.GetAnalyticsEvents(ctx, link.ID, time.Now().Add(-24*time.Hour), time.Now())
+	results, err := testStore.GetAnalyticsEvents(ctx, link.ID, time.Now().Add(-24*time.Hour))
 	if err != nil {
 		t.Fatalf("GetAnalyticsEvents failed: %v", err)
 	}
@@ -189,7 +188,7 @@ func TestGetAnalyticsEvents_FiltersOtherLinks(t *testing.T) {
 	_ = testStore.SaveAnalyticsEvent(ctx, &model.AnalyticsEvent{LinkID: link2.ID, IPAddress: "3.3.3.0", ClickedAt: now})
 
 	// Query link1 only
-	results, err := testStore.GetAnalyticsEvents(ctx, link1.ID, now.Add(-time.Hour), now.Add(time.Hour))
+	results, err := testStore.GetAnalyticsEvents(ctx, link1.ID, now.Add(-time.Hour))
 	if err != nil {
 		t.Fatalf("GetAnalyticsEvents failed: %v", err)
 	}
@@ -359,7 +358,7 @@ func TestSaveAnalyticsEvent_Success(t *testing.T) {
 	}
 
 	// Verify saved
-	events, _ := testStore.GetAnalyticsEvents(ctx, link.ID, time.Now().Add(-time.Hour), time.Now().Add(time.Hour))
+	events, _ := testStore.GetAnalyticsEvents(ctx, link.ID, time.Now().Add(-time.Hour))
 	if len(events) != 1 {
 		t.Fatalf("Got %d events, want 1", len(events))
 	}

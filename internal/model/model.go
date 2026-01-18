@@ -107,9 +107,3 @@ type ClicksByOS struct {
 	OS string `db:"os"`
 	Clicks int `db:"clicks"`
 }
-
-// LinkWithStats - link with basic stats for list view
-// TODO: add fields:
-//   - ID, ShortCode, LongURL, CreatedAt
-//   - TotalClicks (from analytics aggregation)
-//   - UserID

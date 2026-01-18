@@ -39,13 +39,12 @@ type AuthStore interface {
 	GetRefreshToken(ctx context.Context, tokenHash string) (*model.RefreshToken, error)
 	DeleteRefreshToken(ctx context.Context, tokenHash string) error
 	DeleteUserRefreshTokens(ctx context.Context, userID uint64) error
-
 }
 
 type AnalyticsStore interface {
 	Closer
 	SaveAnalyticsEvent(ctx context.Context, event *model.AnalyticsEvent) error
-	GetAnalyticsEvents(ctx context.Context, linkID uint64, startDate, endDate time.Time) ([]*model.AnalyticsEvent, error)
+	GetAnalyticsEvents(ctx context.Context, linkID uint64, period time.Time) ([]*model.AnalyticsEvent, error)
 
 }
 
@@ -295,14 +294,13 @@ func (s *PostgresStore) SaveAnalyticsEvent(ctx context.Context, event *model.Ana
 	return nil
 }
 
-func (s *PostgresStore) GetAnalyticsEvents(ctx context.Context, linkID uint64, startDate time.Time, endDate time.Time) ([]*model.AnalyticsEvent, error) {
-	// sql query for all records in analytics where linkid == linkid and clicked_at between startdate and enddate
+func (s *PostgresStore) GetAnalyticsEvents(ctx context.Context, linkID uint64, period time.Time) ([]*model.AnalyticsEvent, error) {
 	query := `
 		SELECT id, link_id, ip_address::text, user_agent, device_type, browser, os, clicked_at
 		FROM analytics
-		WHERE link_id = $1 AND clicked_at BETWEEN $2 AND $3
+		WHERE link_id = $1 AND clicked_at > $2
 	`
-	rows, err := s.Pool.Query(ctx, query, linkID, startDate, endDate)
+	rows, err := s.Pool.Query(ctx, query, linkID, period)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get analytics events: %w", err)
 	}
