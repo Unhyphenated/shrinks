@@ -14,6 +14,8 @@ import (
 
 var (
 	ErrUniqueViolation = errors.New("unique violation")
+	ErrLinkNotFound = errors.New("link not found")
+	ErrNotOwner = errors.New("not owner")
 )
 
 type Closer interface {
@@ -24,7 +26,7 @@ type LinkStore interface {
 	Closer
 	SaveLink(ctx context.Context, longURL string, userID *uint64) (string, error)
 	GetLinkByCode(ctx context.Context, code string) (*model.Link, error)
-	GetUserLinks(ctx context.Context, userID uint64, limit int, offset int) ([]*model.Link, int, error)
+	GetUserLinks(ctx context.Context, userID uint64, limit int, offset int) ([]model.Link, int, error)
 	DeleteLink(ctx context.Context, shortCode string, userID uint64) error
 }
 
@@ -45,7 +47,6 @@ type AnalyticsStore interface {
 	Closer
 	SaveAnalyticsEvent(ctx context.Context, event *model.AnalyticsEvent) error
 	GetAnalyticsEvents(ctx context.Context, linkID uint64, period time.Time) ([]*model.AnalyticsEvent, error)
-
 }
 
 type PostgresStore struct {
@@ -334,10 +335,10 @@ func (s *PostgresStore) DeleteLink(ctx context.Context, shortCode string, userID
 		return fmt.Errorf("failed to get link by code: %w", err)
 	}
 	if link == nil {
-		return fmt.Errorf("link not found")
+		return ErrLinkNotFound
 	}
 	if link.UserID != nil && *link.UserID != userID {
-		return fmt.Errorf("link not found")
+		return ErrLinkNotFound
 	}
 
 	query := `
