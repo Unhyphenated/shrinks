@@ -537,3 +537,106 @@ func TestAuthService_ConcurrentRegistrations(t *testing.T) {
 		t.Error("Expected at least one ErrUserAlreadyExists error")
 	}
 }
+
+func TestAuthService_Logout_DeletesRefreshToken(t *testing.T) {
+	if testStore == nil {
+		t.Skip("DATABASE_URL not set")
+	}
+
+	os.Setenv("JWT_SECRET", "test-secret-123")
+	defer os.Unsetenv("JWT_SECRET")
+
+	service := NewAuthService(testStore)
+	email := "logout-test@example.com"
+	password := "password123"
+
+	cleanupUsers(t, email)
+	defer cleanupUsers(t, email)
+
+	// Register and login
+	_, err := service.Register(context.Background(), email, password)
+	if err != nil {
+		t.Fatalf("Register failed: %v", err)
+	}
+
+	loginResp, err := service.Login(context.Background(), email, password)
+	if err != nil {
+		t.Fatalf("Login failed: %v", err)
+	}
+
+	// Logout
+	err = service.Logout(context.Background(), loginResp.RefreshToken)
+	if err != nil {
+		t.Fatalf("Logout failed: %v", err)
+	}
+
+	// Verify token is deleted from DB
+	tokenHash := HashRefreshToken(loginResp.RefreshToken)
+	storedToken, err := testStore.GetRefreshToken(context.Background(), tokenHash)
+	if err != nil {
+		t.Fatalf("GetRefreshToken failed: %v", err)
+	}
+
+	if storedToken != nil {
+		t.Error("Refresh token still exists after logout")
+	}
+}
+
+// Test #55: Logout with invalid token returns error
+func TestAuthService_Logout_InvalidToken(t *testing.T) {
+	if testStore == nil {
+		t.Skip("DATABASE_URL not set")
+	}
+
+	service := NewAuthService(testStore)
+
+	err := service.Logout(context.Background(), "invalid-token-that-doesnt-exist")
+
+	if err == nil {
+		t.Error("Logout should return error for invalid token")
+	}
+}
+
+// Test #56: Cannot refresh after logout
+func TestAuthService_Logout_CannotReuseToken(t *testing.T) {
+	if testStore == nil {
+		t.Skip("DATABASE_URL not set")
+	}
+
+	os.Setenv("JWT_SECRET", "test-secret-123")
+	defer os.Unsetenv("JWT_SECRET")
+
+	service := NewAuthService(testStore)
+	email := "logout-reuse-test@example.com"
+	password := "password123"
+
+	cleanupUsers(t, email)
+	defer cleanupUsers(t, email)
+
+	// Register and login
+	_, err := service.Register(context.Background(), email, password)
+	if err != nil {
+		t.Fatalf("Register failed: %v", err)
+	}
+
+	loginResp, err := service.Login(context.Background(), email, password)
+	if err != nil {
+		t.Fatalf("Login failed: %v", err)
+	}
+
+	// Logout
+	err = service.Logout(context.Background(), loginResp.RefreshToken)
+	if err != nil {
+		t.Fatalf("Logout failed: %v", err)
+	}
+
+	// Try to refresh with the logged-out token
+	_, err = service.RefreshAccessToken(context.Background(), loginResp.RefreshToken)
+	if err == nil {
+		t.Error("RefreshAccessToken should fail after logout")
+	}
+
+	if err != ErrInvalidRefreshToken {
+		t.Errorf("Expected ErrInvalidRefreshToken, got %v", err)
+	}
+}
