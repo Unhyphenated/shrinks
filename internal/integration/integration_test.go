@@ -110,10 +110,10 @@ func TestFullFlow_CreateClickAnalytics(t *testing.T) {
 
 	// 3. Simulate clicks with different devices
 	clicks := []struct {
-		ip     string
-		device string
+		ip      string
+		device  string
 		browser string
-		os     string
+		os      string
 	}{
 		{"1.1.1.0", "Desktop", "Chrome", "Windows"},
 		{"1.1.1.0", "Desktop", "Chrome", "Windows"}, // Same IP

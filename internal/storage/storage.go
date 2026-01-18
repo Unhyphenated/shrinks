@@ -14,12 +14,12 @@ import (
 
 var (
 	ErrUniqueViolation = errors.New("unique violation")
-	ErrLinkNotFound = errors.New("link not found")
-	ErrNotOwner = errors.New("not owner")
+	ErrLinkNotFound    = errors.New("link not found")
+	ErrNotOwner        = errors.New("not owner")
 )
 
 type Closer interface {
-    Close()
+	Close()
 }
 
 type LinkStore interface {
@@ -78,29 +78,29 @@ func (s *PostgresStore) Close() {
 }
 
 func (s *PostgresStore) SaveLink(ctx context.Context, longURL string, userID *uint64) (string, error) {
-    var shortCode string
-    
-    var nextID uint64
-    err := s.Pool.QueryRow(ctx, "SELECT nextval('links_id_seq')").Scan(&nextID)
-    if err != nil {
-        return "", err
-    }
+	var shortCode string
 
-    // 2. Generate the code in Go
-    shortCode = encoding.Encode(nextID)
+	var nextID uint64
+	err := s.Pool.QueryRow(ctx, "SELECT nextval('links_id_seq')").Scan(&nextID)
+	if err != nil {
+		return "", err
+	}
 
-    // 3. Insert the full record
-    // Note: userID (as *uint64) will be NULL in DB if the pointer is nil
-    insertQuery := `
+	// 2. Generate the code in Go
+	shortCode = encoding.Encode(nextID)
+
+	// 3. Insert the full record
+	// Note: userID (as *uint64) will be NULL in DB if the pointer is nil
+	insertQuery := `
         INSERT INTO links (id, long_url, short_code, user_id) 
         VALUES ($1, $2, $3, $4);
     `
-    _, err = s.Pool.Exec(ctx, insertQuery, nextID, longURL, shortCode, userID)
-    if err != nil {
-        return "", fmt.Errorf("failed to insert link: %w", err)
-    }
+	_, err = s.Pool.Exec(ctx, insertQuery, nextID, longURL, shortCode, userID)
+	if err != nil {
+		return "", fmt.Errorf("failed to insert link: %w", err)
+	}
 
-    return shortCode, nil
+	return shortCode, nil
 }
 
 func (s *PostgresStore) GetLinkByCode(ctx context.Context, shortCode string) (*model.Link, error) {

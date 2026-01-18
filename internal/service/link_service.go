@@ -15,7 +15,7 @@ import (
 
 var (
 	ErrLinkNotFound = errors.New("link not found")
-	ErrNotOwner = errors.New("not owner")
+	ErrNotOwner     = errors.New("not owner")
 )
 
 type LinkProvider interface {
@@ -28,16 +28,16 @@ type LinkProvider interface {
 }
 
 type LinkService struct {
-	Store storage.LinkStore // The Store interface is the dependency
-	Cache cache.Cache
+	Store     storage.LinkStore // The Store interface is the dependency
+	Cache     cache.Cache
 	Analytics analytics.AnalyticsProvider
 }
 
 func NewLinkService(s storage.LinkStore, c cache.Cache, a analytics.AnalyticsProvider) *LinkService {
 	return &LinkService{
-		Store: s, 
-		Cache: c, 
-		Analytics: a, 
+		Store:     s,
+		Cache:     c,
+		Analytics: a,
 	}
 }
 
@@ -58,12 +58,12 @@ func (ls *LinkService) Redirect(ctx context.Context, shortCode string, event *mo
 	if err != nil {
 		log.Printf("cache error (falling back to DB): %v", err)
 	}
-    
+
 	// Cache hit
-    if link != nil {
-        go ls.RecordEventBackground(shortCode, link, event)
-        return link.LongURL, nil
-    }
+	if link != nil {
+		go ls.RecordEventBackground(shortCode, link, event)
+		return link.LongURL, nil
+	}
 
 	// Check if link is in DB
 	link, err = ls.Store.GetLinkByCode(ctx, shortCode)
@@ -74,7 +74,7 @@ func (ls *LinkService) Redirect(ctx context.Context, shortCode string, event *mo
 	if link == nil {
 		return "", ErrLinkNotFound
 	}
-	
+
 	go ls.RecordEventBackground(shortCode, link, event)
 
 	return link.LongURL, nil
@@ -103,7 +103,7 @@ func (ls *LinkService) RecordEventBackground(shortCode string, link *model.Link,
 		_ = ls.Cache.Set(bgCtx, shortCode, link, 24*time.Hour)
 	}
 
-	if ls.Analytics != nil  && e != nil {
+	if ls.Analytics != nil && e != nil {
 		eCopy := *e
 		eCopy.LinkID = link.ID
 		eCopy.ClickedAt = time.Now()

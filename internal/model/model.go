@@ -52,15 +52,15 @@ type RefreshTokenResponse struct {
 
 // Link Models
 type Link struct {
-    ID        uint64    `db:"id" redis:"id"`
-    UserID    *uint64   `db:"user_id" redis:"user_id,omitempty"`
-    ShortCode string    `db:"short_code" redis:"short_code"`
-    LongURL   string    `db:"long_url" redis:"long_url"`
-    CreatedAt time.Time `db:"created_at" redis:"created_at"`
+	ID        uint64    `db:"id" redis:"id"`
+	UserID    *uint64   `db:"user_id" redis:"user_id,omitempty"`
+	ShortCode string    `db:"short_code" redis:"short_code"`
+	LongURL   string    `db:"long_url" redis:"long_url"`
+	CreatedAt time.Time `db:"created_at" redis:"created_at"`
 }
 
 type CreateLinkRequest struct {
-	URL        string `json:"url"`
+	URL string `json:"url"`
 }
 
 type CreateLinkResponse struct {
@@ -81,32 +81,32 @@ type AnalyticsEvent struct {
 }
 
 type AnalyticsSummary struct {
-	LinkID uint64 `db:"link_id"`
-	Period string `db:"period"`
-	TotalClicks int `db:"total_clicks"`
-	UniqueVisitors int `db:"unique_visitors"`
-	ClicksByDate []ClicksByDate `db:"clicks_by_date"`
-	ClicksByDevice []ClicksByDevice `db:"clicks_by_device"`
+	LinkID          uint64            `db:"link_id"`
+	Period          string            `db:"period"`
+	TotalClicks     int               `db:"total_clicks"`
+	UniqueVisitors  int               `db:"unique_visitors"`
+	ClicksByDate    []ClicksByDate    `db:"clicks_by_date"`
+	ClicksByDevice  []ClicksByDevice  `db:"clicks_by_device"`
 	ClicksByBrowser []ClicksByBrowser `db:"clicks_by_browser"`
-	ClicksByOS []ClicksByOS `db:"clicks_by_os"`
+	ClicksByOS      []ClicksByOS      `db:"clicks_by_os"`
 }
 
 type ClicksByDate struct {
-	Date string `db:"date"`
-	Clicks int `db:"clicks"`
+	Date   string `db:"date"`
+	Clicks int    `db:"clicks"`
 }
 
 type ClicksByDevice struct {
 	Device string `db:"device"`
-	Clicks int `db:"clicks"`
+	Clicks int    `db:"clicks"`
 }
 
 type ClicksByBrowser struct {
 	Browser string `db:"browser"`
-	Clicks int `db:"clicks"`
+	Clicks  int    `db:"clicks"`
 }
 
 type ClicksByOS struct {
-	OS string `db:"os"`
-	Clicks int `db:"clicks"`
+	OS     string `db:"os"`
+	Clicks int    `db:"clicks"`
 }

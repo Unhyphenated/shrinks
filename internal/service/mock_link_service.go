@@ -7,11 +7,11 @@ import (
 )
 
 type MockLinkService struct {
-	ShortenFn  func(ctx context.Context, longURL string, userID *uint64) (string, error)
-	RedirectFn func(ctx context.Context, shortCode string, event *model.AnalyticsEvent) (string, error)
-	GetLinkByCodeFn func(ctx context.Context, shortCode string) (*model.Link, error)
-	GetUserLinksFn func(ctx context.Context, userID uint64, limit int, offset int) ([]model.Link, int, error)
-	DeleteLinkFn func(ctx context.Context, shortCode string, userID uint64) error
+	ShortenFn               func(ctx context.Context, longURL string, userID *uint64) (string, error)
+	RedirectFn              func(ctx context.Context, shortCode string, event *model.AnalyticsEvent) (string, error)
+	GetLinkByCodeFn         func(ctx context.Context, shortCode string) (*model.Link, error)
+	GetUserLinksFn          func(ctx context.Context, userID uint64, limit int, offset int) ([]model.Link, int, error)
+	DeleteLinkFn            func(ctx context.Context, shortCode string, userID uint64) error
 	RecordEventBackgroundFn func(shortCode string, link *model.Link, e *model.AnalyticsEvent)
 }
 

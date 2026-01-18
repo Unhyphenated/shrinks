@@ -74,16 +74,16 @@ func ValidateToken(tokenString string) (*Claims, error) {
 
 func GenerateRefreshToken() (string, error) {
 	bytes := make([]byte, 32)
-    if _, err := rand.Read(bytes); err != nil {
-        return "", fmt.Errorf("failed to generate token: %w", err)
-    }
-    
+	if _, err := rand.Read(bytes); err != nil {
+		return "", fmt.Errorf("failed to generate token: %w", err)
+	}
+
 	token := base64.URLEncoding.WithPadding(base64.NoPadding).EncodeToString(bytes)
 	return token, nil
 }
 
 func HashRefreshToken(token string) string {
 	hash := sha256.Sum256([]byte(token))
-    // Return as hex string
-    return hex.EncodeToString(hash[:])
+	// Return as hex string
+	return hex.EncodeToString(hash[:])
 }

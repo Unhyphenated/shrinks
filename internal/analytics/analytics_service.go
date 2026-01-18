@@ -32,7 +32,7 @@ func (as *AnalyticsService) RecordEvent(ctx context.Context, event *model.Analyt
 }
 
 func (as *AnalyticsService) RetrieveAnalytics(ctx context.Context, linkID uint64, periodString string) (*model.AnalyticsSummary, error) {
-	period , err := util.ParsePeriodToTime(periodString)
+	period, err := util.ParsePeriodToTime(periodString)
 	if err != nil {
 		return nil, fmt.Errorf("failure to parse time: %w", err)
 	}
@@ -57,9 +57,9 @@ func (as *AnalyticsService) RetrieveAnalytics(ctx context.Context, linkID uint64
 	}
 
 	summary := &model.AnalyticsSummary{
-		LinkID: linkID,
-		Period: periodString,
-		TotalClicks: len(events),
+		LinkID:         linkID,
+		Period:         periodString,
+		TotalClicks:    len(events),
 		UniqueVisitors: len(uniqueIPs),
 	}
 

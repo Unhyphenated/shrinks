@@ -44,15 +44,15 @@ func (c *RedisCache) Get(ctx context.Context, key string) (*model.Link, error) {
 	}
 
 	if len(res.Val()) == 0 {
-        return nil, nil
-    }
+		return nil, nil
+	}
 
 	var link model.Link
-    if err := res.Scan(&link); err != nil {
-        return nil, fmt.Errorf("failed to scan redis hash: %w", err)
-    }
+	if err := res.Scan(&link); err != nil {
+		return nil, fmt.Errorf("failed to scan redis hash: %w", err)
+	}
 
-    return &link, nil
+	return &link, nil
 }
 
 func (c *RedisCache) Set(ctx context.Context, key string, link *model.Link, expiration time.Duration) error {
@@ -61,9 +61,9 @@ func (c *RedisCache) Set(ctx context.Context, key string, link *model.Link, expi
 	pipe.Expire(ctx, key, expiration)
 
 	_, err := pipe.Exec(ctx)
-    if err != nil {
-        return fmt.Errorf("failed to set cache with expiration: %w", err)
-    }
+	if err != nil {
+		return fmt.Errorf("failed to set cache with expiration: %w", err)
+	}
 	return nil
 }
 

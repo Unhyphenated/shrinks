@@ -2,24 +2,23 @@ package storage
 
 import (
 	"context"
-	"time"
 	"github.com/Unhyphenated/shrinks-backend/internal/model"
+	"time"
 )
 
-
 type MockStore struct {
-	SaveLinkFn    func(ctx context.Context, longURL string, userID *uint64) (string, error)
-	GetLinkByCodeFn func(ctx context.Context, shortURL string) (*model.Link, error)
-	GetUserLinksFn func(ctx context.Context, userID uint64, limit int, offset int) ([]model.Link, int, error)
-	DeleteLinkFn func(ctx context.Context, shortCode string, userID uint64) error
+	SaveLinkFn           func(ctx context.Context, longURL string, userID *uint64) (string, error)
+	GetLinkByCodeFn      func(ctx context.Context, shortURL string) (*model.Link, error)
+	GetUserLinksFn       func(ctx context.Context, userID uint64, limit int, offset int) ([]model.Link, int, error)
+	DeleteLinkFn         func(ctx context.Context, shortCode string, userID uint64) error
 	GetAnalyticsEventsFn func(ctx context.Context, linkID uint64, startDate, endDate time.Time) ([]*model.AnalyticsEvent, error)
-	CloseFn       func()
+	CloseFn              func()
 }
 
 var _ LinkStore = (*MockStore)(nil)
 
 func (m *MockStore) SaveLink(ctx context.Context, longURL string, userID *uint64) (string, error) {
-	return m.SaveLinkFn(ctx, longURL, userID) 
+	return m.SaveLinkFn(ctx, longURL, userID)
 }
 
 func (m *MockStore) GetLinkByCode(ctx context.Context, shortURL string) (*model.Link, error) {

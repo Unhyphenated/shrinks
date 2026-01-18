@@ -18,7 +18,9 @@ func init() {
 }
 
 func Encode(id uint64) string {
-	if id == 0 { return string(Alphabet[0]) }
+	if id == 0 {
+		return string(Alphabet[0])
+	}
 
 	num := new(big.Int).SetUint64(id)
 	var encoded string
@@ -35,7 +37,7 @@ func Encode(id uint64) string {
 	return encoded
 }
 
-func Decode(encoded string) (uint64, error){
+func Decode(encoded string) (uint64, error) {
 	if encoded == "" {
 		return 0, errors.New("empty string")
 	}

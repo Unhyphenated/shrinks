@@ -12,13 +12,13 @@ import (
 )
 
 var (
-    ErrInvalidEmail    = errors.New("invalid email format")
-    ErrPasswordTooShort = errors.New("password must be at least 8 characters")
-    ErrPasswordTooLong  = errors.New("password exceeds 72 characters")
-	ErrInvalidCredentials = errors.New("invalid email or password")
-	ErrUserAlreadyExists = errors.New("user already exists")
-	ErrInvalidRefreshToken = errors.New("invalid refresh token")
-    ErrRefreshTokenExpired = errors.New("refresh token has expired")
+	ErrInvalidEmail         = errors.New("invalid email format")
+	ErrPasswordTooShort     = errors.New("password must be at least 8 characters")
+	ErrPasswordTooLong      = errors.New("password exceeds 72 characters")
+	ErrInvalidCredentials   = errors.New("invalid email or password")
+	ErrUserAlreadyExists    = errors.New("user already exists")
+	ErrInvalidRefreshToken  = errors.New("invalid refresh token")
+	ErrRefreshTokenExpired  = errors.New("refresh token has expired")
 	ErrRefreshTokenNotFound = errors.New("refresh token not found")
 	ErrDeletingRefreshToken = errors.New("failed to delete refresh token")
 )
@@ -26,8 +26,8 @@ var (
 type AuthProvider interface {
 	Register(ctx context.Context, email string, password string) (model.RegisterResponse, error)
 	Login(ctx context.Context, email string, password string) (model.AuthResponse, error)
-    RefreshAccessToken(ctx context.Context, refreshToken string) (model.RefreshTokenResponse, error)
-    Logout(ctx context.Context, refreshToken string) error
+	RefreshAccessToken(ctx context.Context, refreshToken string) (model.RefreshTokenResponse, error)
+	Logout(ctx context.Context, refreshToken string) error
 }
 
 type AuthService struct {
@@ -67,7 +67,6 @@ func (as *AuthService) Register(ctx context.Context, email string, password stri
 		return model.RegisterResponse{}, err
 	}
 
-	
 	return model.RegisterResponse{
 		UserID: userID,
 	}, nil
@@ -109,9 +108,9 @@ func (as *AuthService) Login(ctx context.Context, email string, password string)
 	}
 
 	return model.AuthResponse{
-		AccessToken: accessToken,
+		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
-		User: *user,
+		User:         *user,
 	}, nil
 }
 
@@ -148,12 +147,12 @@ func (as *AuthService) RefreshAccessToken(ctx context.Context, refreshToken stri
 	return model.RefreshTokenResponse{
 		AccessToken: accessToken,
 	}, nil
-}	
+}
 
 func (as *AuthService) Logout(ctx context.Context, refreshToken string) error {
 	tokenHash := HashRefreshToken(refreshToken)
 	token, err := as.Store.GetRefreshToken(ctx, tokenHash)
-	
+
 	if err != nil {
 		return errors.New("failure to get refresh token")
 	}
