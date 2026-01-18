@@ -17,7 +17,6 @@ type UserAgentInfo struct {
 func ParseUserAgent(uaString string) UserAgentInfo {
     ua := useragent.Parse(uaString)
     
-    // logic remains the same, just return the struct
     return UserAgentInfo{
         Browser:    fmt.Sprintf("%s %s", ua.Name, ua.Version),
         OS:         ua.OS,
