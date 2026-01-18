@@ -11,10 +11,10 @@ import (
 
 type contextKey string
 
-const claimsContextKey contextKey = "claims"
+const ClaimsContextKey contextKey = "claims"
 
 func GetClaimsFromContext(ctx context.Context) (*Claims, bool) {
-	claims, ok := ctx.Value(claimsContextKey).(*Claims)
+	claims, ok := ctx.Value(ClaimsContextKey).(*Claims)
 	return claims, ok
 }
 
@@ -48,7 +48,7 @@ func RequireAuth(next http.Handler) http.Handler {
 			return
 		}
 
-		ctx := context.WithValue(r.Context(), claimsContextKey, claims)
+		ctx := context.WithValue(r.Context(), ClaimsContextKey, claims)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
@@ -61,7 +61,7 @@ func OptionalAuth(next http.Handler) http.Handler {
 			claims, err := ValidateToken(tokenString)
 			if err == nil {
 				// Valid token, add to context
-				ctx := context.WithValue(r.Context(), claimsContextKey, claims)
+				ctx := context.WithValue(r.Context(), ClaimsContextKey, claims)
 				r = r.WithContext(ctx)
 			}
 		}
