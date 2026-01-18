@@ -92,7 +92,7 @@ func createTestLink(t *testing.T, userID *uint64) *model.Link {
 }
 
 // Helper: cleanup user and their data
-func cleanupUser(t *testing.T, email string) {
+func cleanupUser(email string) {
 	ctx := context.Background()
 	_, _ = testStore.Pool.Exec(ctx, `
 		DELETE FROM analytics WHERE link_id IN (
@@ -112,7 +112,9 @@ func cleanupUser(t *testing.T, email string) {
 func TestGetAnalyticsEvents_ReturnsEventsInDateRange(t *testing.T) {
 	ctx := context.Background()
 	email := "analytics-range-test@example.com"
-	defer cleanupUser(t, email)
+	defer func() {
+		cleanupUser(email)
+	}()
 
 	userID := createTestUser(t, email)
 	link := createTestLink(t, &userID)
@@ -151,7 +153,9 @@ func TestGetAnalyticsEvents_ReturnsEventsInDateRange(t *testing.T) {
 func TestGetAnalyticsEvents_EmptyForNoClicks(t *testing.T) {
 	ctx := context.Background()
 	email := "analytics-empty-test@example.com"
-	defer cleanupUser(t, email)
+	defer func() {
+		cleanupUser(email)
+	}()
 
 	userID := createTestUser(t, email)
 	link := createTestLink(t, &userID)
@@ -172,7 +176,9 @@ func TestGetAnalyticsEvents_EmptyForNoClicks(t *testing.T) {
 func TestGetAnalyticsEvents_FiltersOtherLinks(t *testing.T) {
 	ctx := context.Background()
 	email := "analytics-filter-test@example.com"
-	defer cleanupUser(t, email)
+	defer func() {
+		cleanupUser(email)
+	}()
 
 	userID := createTestUser(t, email)
 	link1 := createTestLink(t, &userID)
@@ -208,7 +214,9 @@ func TestGetAnalyticsEvents_FiltersOtherLinks(t *testing.T) {
 func TestDeleteLink_Success(t *testing.T) {
 	ctx := context.Background()
 	email := "delete-success-test@example.com"
-	defer cleanupUser(t, email)
+	defer func() {
+		cleanupUser(email)
+	}()
 
 	userID := createTestUser(t, email)
 	link := createTestLink(t, &userID)
@@ -230,8 +238,12 @@ func TestDeleteLink_NotOwner(t *testing.T) {
 	ctx := context.Background()
 	email1 := "delete-owner-test@example.com"
 	email2 := "delete-other-test@example.com"
-	defer cleanupUser(t, email1)
-	defer cleanupUser(t, email2)
+	defer func() {
+		cleanupUser(email1)
+	}()
+	defer func() {
+		cleanupUser(email2)
+	}()
 
 	userID1 := createTestUser(t, email1)
 	userID2 := createTestUser(t, email2)
@@ -255,7 +267,9 @@ func TestDeleteLink_NotOwner(t *testing.T) {
 func TestDeleteLink_NotFound(t *testing.T) {
 	ctx := context.Background()
 	email := "delete-notfound-test@example.com"
-	defer cleanupUser(t, email)
+	defer func() {
+		cleanupUser(email)
+	}()
 
 	userID := createTestUser(t, email)
 
@@ -269,7 +283,9 @@ func TestDeleteLink_NotFound(t *testing.T) {
 func TestGetUserLinks_ReturnsPaginated(t *testing.T) {
 	ctx := context.Background()
 	email := "paginated-test@example.com"
-	defer cleanupUser(t, email)
+	defer func() {
+		cleanupUser(email)
+	}()
 
 	userID := createTestUser(t, email)
 
@@ -315,7 +331,9 @@ func TestGetUserLinks_ReturnsPaginated(t *testing.T) {
 func TestGetUserLinks_Empty(t *testing.T) {
 	ctx := context.Background()
 	email := "empty-links-test@example.com"
-	defer cleanupUser(t, email)
+	defer func() {
+		cleanupUser(email)
+	}()
 
 	userID := createTestUser(t, email)
 
@@ -337,7 +355,9 @@ func TestGetUserLinks_Empty(t *testing.T) {
 func TestSaveAnalyticsEvent_Success(t *testing.T) {
 	ctx := context.Background()
 	email := "save-event-test@example.com"
-	defer cleanupUser(t, email)
+	defer func() {
+		cleanupUser(email)
+	}()
 
 	userID := createTestUser(t, email)
 	link := createTestLink(t, &userID)
