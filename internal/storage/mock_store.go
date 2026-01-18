@@ -10,7 +10,7 @@ import (
 type MockStore struct {
 	SaveLinkFn    func(ctx context.Context, longURL string, userID *uint64) (string, error)
 	GetLinkByCodeFn func(ctx context.Context, shortURL string) (*model.Link, error)
-	GetUserLinksFn func(ctx context.Context, userID uint64, limit int, offset int) ([]*model.Link, int, error)
+	GetUserLinksFn func(ctx context.Context, userID uint64, limit int, offset int) ([]model.Link, int, error)
 	DeleteLinkFn func(ctx context.Context, shortCode string, userID uint64) error
 	GetAnalyticsEventsFn func(ctx context.Context, linkID uint64, startDate, endDate time.Time) ([]*model.AnalyticsEvent, error)
 	CloseFn       func()
@@ -26,7 +26,7 @@ func (m *MockStore) GetLinkByCode(ctx context.Context, shortURL string) (*model.
 	return m.GetLinkByCodeFn(ctx, shortURL)
 }
 
-func (m *MockStore) GetUserLinks(ctx context.Context, userID uint64, limit int, offset int) ([]*model.Link, int, error) {
+func (m *MockStore) GetUserLinks(ctx context.Context, userID uint64, limit int, offset int) ([]model.Link, int, error) {
 	return m.GetUserLinksFn(ctx, userID, limit, offset)
 }
 
