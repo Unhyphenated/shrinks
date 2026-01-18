@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"sync"
 	"time"
 
 	"github.com/Unhyphenated/shrinks-backend/internal/analytics"
@@ -16,13 +15,22 @@ import (
 
 var (
 	ErrLinkNotFound = errors.New("link not found")
+	ErrNotOwner = errors.New("not owner")
 )
+
+type LinkProvider interface {
+	Shorten(ctx context.Context, longURL string, userID *uint64) (string, error)
+	Redirect(ctx context.Context, shortCode string, event *model.AnalyticsEvent) (string, error)
+	GetLinkByCode(ctx context.Context, shortCode string) (*model.Link, error)
+	GetUserLinks(ctx context.Context, userID uint64, limit int, offset int) ([]model.Link, int, error)
+	DeleteLink(ctx context.Context, shortCode string, userID uint64) error
+	RecordEventBackground(shortCode string, link *model.Link, e *model.AnalyticsEvent)
+}
 
 type LinkService struct {
 	Store storage.LinkStore // The Store interface is the dependency
 	Cache cache.Cache
 	Analytics analytics.AnalyticsProvider
-	mu sync.RWMutex
 }
 
 func NewLinkService(s storage.LinkStore, c cache.Cache, a analytics.AnalyticsProvider) *LinkService {
@@ -72,6 +80,22 @@ func (ls *LinkService) Redirect(ctx context.Context, shortCode string, event *mo
 	return link.LongURL, nil
 }
 
+func (ls *LinkService) GetLinkByCode(ctx context.Context, shortCode string) (*model.Link, error) {
+	return ls.Store.GetLinkByCode(ctx, shortCode)
+}
+
+func (ls *LinkService) GetUserLinks(ctx context.Context, userID uint64, limit int, offset int) ([]model.Link, int, error) {
+	links, total, err := ls.Store.GetUserLinks(ctx, userID, limit, offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to get user links: %w", err)
+	}
+	return links, total, nil
+}
+
+func (ls *LinkService) DeleteLink(ctx context.Context, shortCode string, userID uint64) error {
+	return ls.Store.DeleteLink(ctx, shortCode, userID)
+}
+
 func (ls *LinkService) RecordEventBackground(shortCode string, link *model.Link, e *model.AnalyticsEvent) {
 	bgCtx := context.Background()
 
@@ -83,9 +107,6 @@ func (ls *LinkService) RecordEventBackground(shortCode string, link *model.Link,
 		eCopy := *e
 		eCopy.LinkID = link.ID
 		eCopy.ClickedAt = time.Now()
-
-		ls.mu.Lock()
-		defer ls.mu.Unlock()
 
 		if err := ls.Analytics.RecordEvent(bgCtx, &eCopy); err != nil {
 			log.Printf("failed to record analytics event: %v", err)
