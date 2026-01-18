@@ -38,15 +38,21 @@ func NewRedisCache(redisURL string) (*RedisCache, error) {
 }
 
 func (c *RedisCache) Get(ctx context.Context, key string) (*model.Link, error) {
-	var link *model.Link
-	err := c.Client.HGetAll(ctx, key).Scan(&link)
-	if err == redis.Nil {
-		return nil, nil
-	} else if err != nil {
+	res := c.Client.HGetAll(ctx, key)
+	if err := res.Err(); err != nil {
 		return nil, fmt.Errorf("failed to get value from Redis: %w", err)
 	}
 
-	return link, nil
+	if len(res.Val()) == 0 {
+        return nil, nil
+    }
+
+	var link model.Link
+    if err := res.Scan(&link); err != nil {
+        return nil, fmt.Errorf("failed to scan redis hash: %w", err)
+    }
+
+    return &link, nil
 }
 
 func (c *RedisCache) Set(ctx context.Context, key string, link *model.Link, expiration time.Duration) error {
