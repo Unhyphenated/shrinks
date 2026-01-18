@@ -24,6 +24,8 @@ type LinkStore interface {
 	Closer
 	SaveLink(ctx context.Context, longURL string, userID *uint64) (string, error)
 	GetLinkByCode(ctx context.Context, code string) (*model.Link, error)
+	GetUserLinks(ctx context.Context, userID uint64, limit int, offset int) ([]*model.Link, int, error)
+	DeleteLink(ctx context.Context, shortCode string, userID uint64) error
 }
 
 type AuthStore interface {
@@ -43,16 +45,8 @@ type AuthStore interface {
 type AnalyticsStore interface {
 	Closer
 	SaveAnalyticsEvent(ctx context.Context, event *model.AnalyticsEvent) error
+	GetAnalyticsEvents(ctx context.Context, linkID uint64, startDate, endDate time.Time) ([]*model.AnalyticsEvent, error)
 
-// 	// GetAnalyticsEvents - retrieve raw events for aggregation
-// 	// TODO: SELECT from analytics WHERE link_id = ? AND clicked_at BETWEEN ? AND ?
-// 	// TODO: return slice of AnalyticsEvent
-	GetAnalyticsEvents(ctx context.Context, linkID uint64, startDate, endDate time.Time)
-
-// 	// GetUserLinksWithStats - get user's links with click counts
-// 	// TODO: SELECT links with JOIN to analytics for total_clicks count
-// 	// TODO: return slice of LinkWithStats
-// 	GetUserLinksWithStats(ctx context.Context, userID uint64) ([]*model.LinkWithStats, error)
 }
 
 type PostgresStore struct {
@@ -301,7 +295,112 @@ func (s *PostgresStore) SaveAnalyticsEvent(ctx context.Context, event *model.Ana
 	return nil
 }
 
-func (s *PostgresStore) GetAnalyticsEvents(ctx context.Context, linkID uint64, startDate time.Time, endDate time.Time) {
+func (s *PostgresStore) GetAnalyticsEvents(ctx context.Context, linkID uint64, startDate time.Time, endDate time.Time) ([]*model.AnalyticsEvent, error) {
 	// sql query for all records in analytics where linkid == linkid and clicked_at between startdate and enddate
-	// return all records of *model.AnalyticsEvent belongign to linkid
+	query := `
+		SELECT id, link_id, ip_address::text, user_agent, device_type, browser, os, clicked_at
+		FROM analytics
+		WHERE link_id = $1 AND clicked_at BETWEEN $2 AND $3
+	`
+	rows, err := s.Pool.Query(ctx, query, linkID, startDate, endDate)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get analytics events: %w", err)
+	}
+
+	defer rows.Close()
+
+	events := []*model.AnalyticsEvent{}
+	for rows.Next() {
+		var event model.AnalyticsEvent
+		err := rows.Scan(
+			&event.ID,
+			&event.LinkID,
+			&event.IPAddress,
+			&event.UserAgent,
+			&event.DeviceType,
+			&event.Browser,
+			&event.OS,
+			&event.ClickedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan analytics event: %w", err)
+		}
+		events = append(events, &event)
+	}
+	return events, nil
+}
+
+func (s *PostgresStore) DeleteLink(ctx context.Context, shortCode string, userID uint64) error {
+	link, err := s.GetLinkByCode(ctx, shortCode)
+	if err != nil {
+		return fmt.Errorf("failed to get link by code: %w", err)
+	}
+	if link == nil {
+		return fmt.Errorf("link not found")
+	}
+	if link.UserID != nil && *link.UserID != userID {
+		return fmt.Errorf("link not found")
+	}
+
+	query := `
+		DELETE FROM links
+		WHERE short_code = $1 and user_id = $2
+	`
+	_, err = s.Pool.Exec(ctx, query, shortCode, userID)
+	if err != nil {
+		return fmt.Errorf("failed to delete link: %w", err)
+	}
+
+	// Remove all analytics events for the link
+	query = `
+		DELETE FROM analytics
+		WHERE link_id IN (SELECT id FROM links WHERE short_code = $1 and user_id = $2)
+	`
+	_, err = s.Pool.Exec(ctx, query, shortCode, userID)
+	if err != nil {
+		return fmt.Errorf("failed to delete analytics events: %w", err)
+	}
+
+	return nil
+}
+
+func (s *PostgresStore) GetUserLinks(ctx context.Context, userID uint64, limit int, offset int) ([]model.Link, int, error) {
+	query := `
+		WITH total AS (
+			SELECT count(*) as amount FROM links WHERE user_id = $1
+		)
+		SELECT id, user_id, long_url, short_code, created_at, total.amount
+		FROM links, total
+		WHERE user_id = $1
+		ORDER BY created_at desc
+		LIMIT $2 OFFSET $3
+	`
+
+	rows, err := s.Pool.Query(ctx, query, userID, limit, offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to get user links: %w", err)
+	}
+
+	defer rows.Close()
+
+	links := []model.Link{}
+	total := 0
+
+	for rows.Next() {
+		var link model.Link
+		err := rows.Scan(
+			&link.ID,
+			&link.UserID,
+			&link.LongURL,
+			&link.ShortCode,
+			&link.CreatedAt,
+			&total,
+		)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to scan link: %w", err)
+		}
+		links = append(links, link)
+	}
+
+	return links, total, nil
 }
