@@ -50,7 +50,6 @@ func main() {
 	linkService := service.NewLinkService(store, cache, analyticsService)
 	authService := auth.NewAuthService(store)
 
-	// Simple HTTP server setup
 	mux := http.NewServeMux()
 
 	mux.Handle("POST /api/v1/links/shorten", auth.OptionalAuth(handlerShorten(linkService)))
@@ -58,10 +57,10 @@ func main() {
 
 	mux.HandleFunc("POST /api/v1/auth/register", handlerRegister(authService))
 	mux.HandleFunc("POST /api/v1/auth/login", handlerLogin(authService))
-
 	mux.HandleFunc("POST /api/v1/auth/refresh", handlerRefresh(authService))
+	mux.Handle("POST /api/v1/auth/logout", auth.RequireAuth(handlerLogout(authService)))
 
-	// mux.Handle("GET /api/v1/analytics/{shortCode}", auth.RequireAuth(handlerLinkAnalytics(analyticsService, linkService))) // auth guard
+	mux.Handle("GET /api/v1/analytics/{shortCode}", auth.RequireAuth(handlerLinkAnalytics(analyticsService, linkService)))
 
 	mux.HandleFunc("GET /health", handlerHealth())
 
@@ -73,7 +72,7 @@ func main() {
 	}
 }
 
-func handlerRegister(svc *auth.AuthService) http.HandlerFunc {
+func handlerRegister(svc auth.AuthProvider) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req model.RegisterRequest
 
@@ -114,7 +113,7 @@ func handlerRegister(svc *auth.AuthService) http.HandlerFunc {
 	}
 }
 
-func handlerLogin(svc *auth.AuthService) http.HandlerFunc {
+func handlerLogin(svc auth.AuthProvider) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req model.LoginRequest
 
@@ -151,7 +150,33 @@ func handlerLogin(svc *auth.AuthService) http.HandlerFunc {
 	}
 }
 
-func handlerRefresh(svc *auth.AuthService) http.HandlerFunc {
+func handlerLogout(svc auth.AuthProvider) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req model.LogoutRequest 
+
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			util.WriteError(w, http.StatusBadRequest, "Invalid request payload")
+			return
+		}
+
+		err := svc.Logout(r.Context(), req.RefreshToken)
+		if err != nil {
+			switch {
+			case errors.Is(err, auth.ErrInvalidRefreshToken):
+				util.WriteError(w, http.StatusUnauthorized, "Invalid refresh token")
+			case errors.Is(err, auth.ErrRefreshTokenExpired):
+				util.WriteError(w, http.StatusUnauthorized, "Refresh token has expired")
+			default:
+				log.Printf("Logout error: %v", err)
+				util.WriteError(w, http.StatusInternalServerError, "Failed to logout")
+			}
+			return
+		}
+		util.WriteJSON(w, http.StatusOK, "Logged out successfully")
+	}
+} 
+
+func handlerRefresh(svc auth.AuthProvider) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req model.RefreshTokenRequest
 
@@ -183,7 +208,7 @@ func handlerRefresh(svc *auth.AuthService) http.HandlerFunc {
 	}
 }
 
-func handlerShorten(svc *service.LinkService) http.HandlerFunc {
+func handlerShorten(svc service.LinkProvider) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req model.CreateLinkRequest
 
@@ -219,7 +244,7 @@ func handlerShorten(svc *service.LinkService) http.HandlerFunc {
 	}
 }
 
-func handlerRedirect(svc *service.LinkService) http.HandlerFunc {
+func handlerRedirect(svc service.LinkProvider) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ua := util.ParseUserAgent(r.Header.Get("User-Agent"))
 		ip := util.GetIP(r.Header.Get("X-Forwarded-For"), r.RemoteAddr)
@@ -249,45 +274,94 @@ func handlerRedirect(svc *service.LinkService) http.HandlerFunc {
 	}
 }
 
-// handlerListLinks - GET /api/v1/links
-// Returns all links for authenticated user with basic stats
-// func handlerListLinks(linkService *service.LinkService, analyticsService *service.AnalyticsService) http.HandlerFunc {
-// 	return func(w http.ResponseWriter, r *http.Request) {
-// 		// TODO: get userID from JWT token (RequireAuth middleware)
-// 		// TODO: call analyticsService.GetUserLinksWithStats(userID)
-// 		// TODO: return JSON response with links array
-// 	}
-// }
+func handlerLinkAnalytics(analyticsService analytics.AnalyticsProvider, linkService service.LinkProvider) http.HandlerFunc {
+return func(w http.ResponseWriter, r *http.Request) {
+claims, ok := auth.GetClaimsFromContext(r.Context())
+if !ok {
+util.WriteError(w, http.StatusUnauthorized, "Unauthorized")
+return
+}
 
-// handlerLinkAnalytics - GET /api/v1/links/{shortCode}/analytics?period=30d
-// Returns detailed analytics for specific link
-// func handlerLinkAnalytics(analyticsService *analytics.AnalyticsService, linkService *service.LinkService) http.HandlerFunc {
-// 	return func(w http.ResponseWriter, r *http.Request) {
-// 		shortCode := r.PathValue("shortCode")
+shortCode := r.PathValue("shortCode")
+period := r.URL.Query().Get("period")
+if period == "" {
+period = "30d"
+}
 
-// 		var userID *uint64
-// 		claims, ok := auth.GetClaimsFromContext(r.Context())
-// 		if ok {
-// 			userID = &claims.UserID
-// 		}
+link, err := linkService.GetLinkByCode(r.Context(), shortCode)
+if err != nil {
+util.WriteError(w, http.StatusInternalServerError, "Failed to get link")
+return
+}
 
-// 		// TODO: get link by shortCode
-// 		link, err := linkService.Store.GetLinkByCode(r.Context(), shortCode)
-// 		if err != nil || link == nil {
-// 			util.WriteError(w, http.StatusNotFound, "Link not found")
-// 			return
-// 		}
+if link == nil {
+util.WriteError(w, http.StatusNotFound, "Link not found")
+return
+}
 
-// 		// TODO: check link ownership (return 403 if user doesn't own link)
-// 		if link.UserID == nil || userID == nil || *link.UserID != *userID {
-// 			util.WriteError(w, http.StatusForbidden, "Access denied")
-// 			return
-// 		}
-// 		// TODO: parse period query param (default to "30d", validate "24h"/"7d"/"30d") DO THIS LATER
-// 		// TODO: call analyticsService.RetrieveAnalytics(linkID, period)
-// 		// TODO: return JSON response with AnalyticsSummary
-// 	}
-// }
+// Check ownership
+if link.UserID == nil || *link.UserID != claims.UserID {
+util.WriteError(w, http.StatusForbidden, "Not authorized to view analytics for this link")
+return
+}
+
+analyticsSummary, err := analyticsService.RetrieveAnalytics(r.Context(), link.ID, period)
+if err != nil {
+util.WriteError(w, http.StatusInternalServerError, "Failed to retrieve analytics")
+return
+}
+util.WriteJSON(w, http.StatusOK, analyticsSummary)
+}
+}
+func handlerListLinks(linkService service.LinkProvider) http.HandlerFunc {
+return func(w http.ResponseWriter, r *http.Request) {
+claims, ok := auth.GetClaimsFromContext(r.Context())
+if !ok {
+util.WriteError(w, http.StatusUnauthorized, "Unauthorized")
+return
+}
+
+links, total, err := linkService.GetUserLinks(r.Context(), claims.UserID, 10, 0)
+if err != nil {
+util.WriteError(w, http.StatusInternalServerError, "Failed to list links")
+return
+}
+util.WriteJSON(w, http.StatusOK, map[string]interface{}{
+"links": links,
+"total": total,
+})
+}
+}
+
+func handlerDeleteLink(linkService service.LinkProvider) http.HandlerFunc {
+return func(w http.ResponseWriter, r *http.Request) {
+claims, ok := auth.GetClaimsFromContext(r.Context())
+if !ok {
+util.WriteError(w, http.StatusUnauthorized, "Unauthorized")
+return
+}
+
+shortCode := r.PathValue("shortCode")
+err := linkService.DeleteLink(r.Context(), shortCode, claims.UserID)
+if err != nil {
+switch {
+case errors.Is(err, service.ErrNotOwner):
+util.WriteError(w, http.StatusForbidden, "Not authorized to delete this link")
+case errors.Is(err, service.ErrLinkNotFound):
+util.WriteError(w, http.StatusNotFound, "Link not found")
+case errors.Is(err, storage.ErrNotOwner):
+util.WriteError(w, http.StatusForbidden, "Not authorized to delete this link")
+case errors.Is(err, storage.ErrLinkNotFound):
+util.WriteError(w, http.StatusNotFound, "Link not found")
+default:
+log.Printf("Delete link error: %v", err)
+util.WriteError(w, http.StatusInternalServerError, "Failed to delete link")
+}
+return
+}
+w.WriteHeader(http.StatusNoContent)
+}
+}
 
 func handlerHealth() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
