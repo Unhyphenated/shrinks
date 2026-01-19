@@ -281,6 +281,9 @@ func TestFullFlow_CreateListDeleteLinks(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetUserLinks failed: %v", err)
 	}
+	if len(links) != 2 {
+		t.Errorf("Got %d links after delete, want 2", len(links))
+	}
 
 	if total != 2 {
 		t.Errorf("Total after delete = %d, want 2", total)

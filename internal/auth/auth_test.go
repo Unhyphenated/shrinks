@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"log"
 	"os"
 	"testing"
 	"time"
@@ -17,6 +18,7 @@ func TestMain(m *testing.M) {
 	err := godotenv.Load("../../.env")
 	if err != nil {
 		// Don't fail if .env doesn't exist, might be using environment variables
+		log.Println("Warning: .env file not found")
 	}
 
 	dbURL := os.Getenv("DATABASE_URL")
