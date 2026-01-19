@@ -59,7 +59,7 @@ func TestMain(m *testing.M) {
 }
 
 // Helper: cleanup user and related data
-func cleanup(t *testing.T, email string) {
+func cleanup(email string) {
 	ctx := context.Background()
 	_, _ = testStore.Pool.Exec(ctx, `
 		DELETE FROM analytics WHERE link_id IN (
@@ -73,13 +73,13 @@ func cleanup(t *testing.T, email string) {
 }
 
 // Helper: flush redis keys matching pattern
-func flushTestKeys(pattern string) {
-	ctx := context.Background()
-	keys, _ := testCache.Client.Keys(ctx, pattern).Result()
-	for _, key := range keys {
-		testCache.Client.Del(ctx, key)
-	}
-}
+// func flushTestKeys(pattern string) {
+// 	ctx := context.Background()
+// 	keys, _ := testCache.Client.Keys(ctx, pattern).Result()
+// 	for _, key := range keys {
+// 		testCache.Client.Del(ctx, key)
+// 	}
+// }
 
 // Test #87: Full flow - Create link, click it, verify analytics
 func TestFullFlow_CreateClickAnalytics(t *testing.T) {
@@ -89,7 +89,7 @@ func TestFullFlow_CreateClickAnalytics(t *testing.T) {
 
 	ctx := context.Background()
 	email := "integration-analytics@example.com"
-	defer cleanup(t, email)
+	defer cleanup(email)
 
 	// 1. Register user
 	registerResp, err := testAuth.Register(ctx, email, "password123")
@@ -182,7 +182,7 @@ func TestFullFlow_RegisterLoginLogout(t *testing.T) {
 	ctx := context.Background()
 	email := "integration-auth@example.com"
 	password := "password123"
-	defer cleanup(t, email)
+	defer cleanup(email)
 
 	// 1. Register
 	registerResp, err := testAuth.Register(ctx, email, password)
@@ -238,7 +238,7 @@ func TestFullFlow_CreateListDeleteLinks(t *testing.T) {
 
 	ctx := context.Background()
 	email := "integration-links@example.com"
-	defer cleanup(t, email)
+	defer cleanup(email)
 
 	// 1. Register user
 	registerResp, err := testAuth.Register(ctx, email, "password123")
