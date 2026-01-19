@@ -9,14 +9,36 @@ on:
 jobs:
     test:
         runs-on: ubuntu-latest
-
+        services:
+          postgres:
+            image: postgres:15-alpine
+            ports:
+              - 5432:5432
+            env:
+              POSTGRES_USER: user
+              POSTGRES_PASSWORD: password
+              POSTGRES_DB: shrinks
+            options: >-
+              --health-cmd pg_isready -U user -d shrinks
+              --health-interval 5s
+              --health-timeout 5s
+              --health-retries 5
+          redis:
+            image: redis:7-alpine
+            ports:
+              - 6379:6379
+            options: >-
+              --health-cmd redis-cli ping
+              --health-interval 5s
+              --health-timeout 3s
+              --health-retries 5
         steps:
             - uses: actions/checkout@v4 
             - name: Run Linter
               uses: golangci/golangci-lint-action@v6
               with:
                 version: latest
-                
+
             - name: Set up Go 
               uses: actions/setup-go@v5 
               with:
@@ -24,6 +46,13 @@ jobs:
 
             - name: Run Unit and E2E Tests (Skipping DB)
               run: go test -v $(go list ./... | grep -v /storage | grep -v /analytics | grep -v /auth)
+            
+            - name: Run Integration Tests
+              env:
+                DATABASE_URL: postgres://user:password@localhost:5432/shrinks?sslmode=disable
+                REDIS_URL: redis://localhost:6379
+                JWT_SECRET: test-secret
+              run: go test -v ./internal/integration/... ./internal/auth/... ./internal/storage/... ./internal/service/... ./internal/cache/... ./internal/analytics/...
         
             - name: Build Application
               run: go build -v -o app ./cmd
