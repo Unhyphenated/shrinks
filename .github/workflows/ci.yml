@@ -8,6 +8,11 @@ on:
 
 jobs:
     test:
+        env:
+          DATABASE_URL: postgres://user:password@localhost:5432/shrinks?sslmode=disable
+          REDIS_URL: redis://localhost:6379
+          JWT_SECRET: test-secret
+
         runs-on: ubuntu-latest
         services:
           postgres:
@@ -19,7 +24,7 @@ jobs:
               POSTGRES_PASSWORD: password
               POSTGRES_DB: shrinks
             options: >-
-              --health-cmd pg_isready -U user -d shrinks
+              --health-cmd "pg_isready -U user -d shrinks"
               --health-interval 5s
               --health-timeout 5s
               --health-retries 5
@@ -32,6 +37,7 @@ jobs:
               --health-interval 5s
               --health-timeout 3s
               --health-retries 5
+
         steps:
             - uses: actions/checkout@v4 
             - name: Run Linter
@@ -46,12 +52,13 @@ jobs:
 
             - name: Run Unit and E2E Tests (Skipping DB)
               run: go test -v $(go list ./... | grep -v /storage | grep -v /analytics | grep -v /auth)
+
+            - name: Install & Run Migrations
+              run: | 
+                go install github.com/pressly/goose/v3/cmd/goose@latest &&
+                ~/go/bin/goose -dir db/migrations postgres "$DATABASE_URL" up
             
             - name: Run Integration Tests
-              env:
-                DATABASE_URL: postgres://user:password@localhost:5432/shrinks?sslmode=disable
-                REDIS_URL: redis://localhost:6379
-                JWT_SECRET: test-secret
               run: go test -v ./internal/integration/... ./internal/auth/... ./internal/storage/... ./internal/service/... ./internal/cache/... ./internal/analytics/...
         
             - name: Build Application
