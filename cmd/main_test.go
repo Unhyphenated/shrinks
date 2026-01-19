@@ -57,27 +57,6 @@ func newMockAnalytics() *analytics.MockAnalytics {
 	}
 }
 
-func newMockAuthService() *auth.MockAuthService {
-	return &auth.MockAuthService{
-		RegisterFn: func(ctx context.Context, email, password string) (model.RegisterResponse, error) {
-			return model.RegisterResponse{UserID: 123}, nil
-		},
-		LoginFn: func(ctx context.Context, email, password string) (model.AuthResponse, error) {
-			return model.AuthResponse{
-				AccessToken:  "access-token",
-				RefreshToken: "refresh-token",
-				User:         model.User{ID: 123, Email: email},
-			}, nil
-		},
-		RefreshAccessTokenFn: func(ctx context.Context, refreshToken string) (model.RefreshTokenResponse, error) {
-			return model.RefreshTokenResponse{AccessToken: "access-token"}, nil
-		},
-		LogoutFn: func(ctx context.Context, refreshToken string) error {
-			return nil
-		},
-	}
-}
-
 func newMockLinkService() *service.MockLinkService {
 	return &service.MockLinkService{
 		// No default implementations - let each test configure what it needs
