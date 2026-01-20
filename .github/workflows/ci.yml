@@ -7,13 +7,16 @@ on:
         branches: [ "main", "dev" ]
 
 jobs:
-    test:
+    test-backend:
         env:
           DATABASE_URL: postgres://user:password@localhost:5432/shrinks?sslmode=disable
           REDIS_URL: redis://localhost:6379
           JWT_SECRET: test-secret
 
         runs-on: ubuntu-latest
+        defaults:
+          run:
+            working-directory: ./backend
         services:
           postgres:
             image: postgres:15-alpine
@@ -63,3 +66,24 @@ jobs:
         
             - name: Build Application
               run: go build -v -o app ./cmd
+
+    test-frontend:
+      runs-on: ubuntu-latest
+      defaults:
+        run:
+          working-directory: ./frontend
+      steps:
+        - uses: actions/checkout@v4
+        - name: Setup Node.js
+          uses: actions/setup-node@v4
+          with:
+            node-version: '20'
+
+        - name: Install Dependencies
+          run: npm ci
+          
+        - name: Lint
+          run: npm run lint
+
+        - name: Build Application
+          run: npm run build
