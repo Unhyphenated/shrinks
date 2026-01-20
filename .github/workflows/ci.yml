@@ -50,7 +50,7 @@ jobs:
               with:
                 go-version: '1.24'
 
-            - name: Run Unit and E2E Tests (Skipping DB)
+            - name: Run Unit Tests
               run: go test -v -tags=unit ./...
 
             - name: Install & Run Migrations
