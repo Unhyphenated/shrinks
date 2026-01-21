@@ -25,7 +25,7 @@ export function Navbar({ currentView, setView }: NavbarProps) {
             <span className="font-mono text-white font-bold text-xs">/</span>
           </div>
           <span className="text-lg font-bold tracking-tight text-zinc-900 group-hover:text-[#E11D48] transition-colors">
-            Shrinks<span className="text-[#E11D48]">.</span>
+            shrinks<span className="text-[#E11D48]">.</span>
           </span>
         </div>
 

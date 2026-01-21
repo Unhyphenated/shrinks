@@ -92,7 +92,7 @@ function AppContent() {
             <div className="w-5 h-5 bg-[#E11D48] flex items-center justify-center">
               <span className="font-mono text-white font-bold text-[10px]">/</span>
             </div>
-            <span className="text-sm text-zinc-500 font-medium">© 2024 Shrinks Inc.</span>
+            <span className="text-sm text-zinc-500 font-medium">© 2026 shrinks.</span>
           </div>
           <div className="flex gap-6 text-zinc-400">
             <Twitter className="w-5 h-5 hover:text-black cursor-pointer transition-colors" />
