@@ -152,11 +152,9 @@ export function HomeView({ setView }: HomeViewProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-[-1px] mb-24 bg-zinc-200 border border-zinc-200">
-        <BentoItem title="Total Requests" value="2.4B" sub="+12% this month" icon={Activity} />
-        <BentoItem title="Avg. Latency" value="14ms" sub="Global Edge Network" icon={Zap} />
-        <BentoItem title="Active Links" value="850k" sub="Across 12 regions" icon={Globe} />
-        <BentoItem title="Uptime" value="99.99%" sub="SLA Guaranteed" icon={Cpu} />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-[-1px] mb-24 bg-zinc-200 border border-zinc-200">
+        <BentoItem title="Total Requests" value="2.4B" icon={Activity} />
+        <BentoItem title="Active Links" value="850k" icon={Globe} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
