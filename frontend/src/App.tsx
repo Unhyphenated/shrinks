@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Github, Twitter, ArrowRight } from 'lucide-react';
+import { Github, Linkedin } from 'lucide-react';
 import { AuthProvider } from './hooks/useAuth';
 import { Navbar } from './components/Navbar';
 import { HomeView } from './views/HomeView';
@@ -49,54 +49,50 @@ function AppContent() {
         )}
       </main>
 
-      <footer className="border-t-2 border-zinc-200 bg-zinc-50 pt-20 pb-10 mt-auto">
-        <div className="max-w-7xl mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-12 mb-16">
-          <div>
-            <h5 className="text-black font-bold mb-6 uppercase text-xs tracking-wider">Platform</h5>
-            <ul className="space-y-3 text-sm text-zinc-500 font-medium">
-              <li><button onClick={() => handleSetView('home')} className="hover:text-[#E11D48]">Shortener</button></li>
-              <li><button onClick={() => handleSetView('analytics')} className="hover:text-[#E11D48]">Analytics</button></li>
-            </ul>
-          </div>
-          <div>
-            <h5 className="text-black font-bold mb-6 uppercase text-xs tracking-wider">Company</h5>
-            <ul className="space-y-3 text-sm text-zinc-500 font-medium">
-              <li><a href="#" className="hover:text-[#E11D48]">About</a></li>
-              <li><a href="#" className="hover:text-[#E11D48]">Careers</a></li>
-            </ul>
-          </div>
-          <div>
-            <h5 className="text-black font-bold mb-6 uppercase text-xs tracking-wider">Legal</h5>
-            <ul className="space-y-3 text-sm text-zinc-500 font-medium">
-              <li><a href="#" className="hover:text-[#E11D48]">Privacy</a></li>
-              <li><a href="#" className="hover:text-[#E11D48]">Terms</a></li>
-            </ul>
-          </div>
-          <div className="col-span-2 md:col-span-1">
-            <h5 className="text-black font-bold mb-6 uppercase text-xs tracking-wider">Subscribe</h5>
-            <p className="text-xs text-zinc-500 mb-4">Latest updates on our API and features.</p>
-            <div className="flex border-2 border-zinc-200 bg-white p-1">
-              <input 
-                type="email" 
-                placeholder="email@company.com" 
-                className="flex-1 bg-transparent border-none px-3 py-2 text-sm text-black w-full focus:ring-0 placeholder-zinc-400 outline-none" 
-              />
-              <button className="bg-black text-white px-4 py-2 text-sm font-bold hover:bg-[#E11D48] transition-colors">
-                <ArrowRight className="w-4 h-4" />
-              </button>
+      <footer className="relative border-t-2 border-zinc-200 bg-zinc-50 py-12 mt-auto overflow-hidden">
+        <div className="max-w-7xl mx-auto px-6 relative z-10">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-8">
+            {/* Left: Shrinks logo + copyright */}
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-[#E11D48] flex items-center justify-center">
+                <span className="font-mono text-white font-bold text-sm">/</span>
+              </div>
+              <span className="text-sm text-zinc-500 font-medium">© 2026 Shrinks</span>
             </div>
-          </div>
-        </div>
-        <div className="max-w-7xl mx-auto px-6 pt-8 border-t-2 border-zinc-200 flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-5 h-5 bg-[#E11D48] flex items-center justify-center">
-              <span className="font-mono text-white font-bold text-[10px]">/</span>
+
+            {/* Right: Social links + Made by */}
+            <div className="flex flex-col items-center md:items-end gap-3">
+              <div className="flex items-center gap-4">
+                <a 
+                  href="https://github.com/Unhyphenated" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-zinc-400 hover:text-black transition-colors cursor-pointer"
+                >
+                  <Github className="w-5 h-5" />
+                </a>
+                <a 
+                  href="https://linkedin.com/in/julian-jong" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-zinc-400 hover:text-black transition-colors cursor-pointer"
+                >
+                  <Linkedin className="w-5 h-5" />
+                </a>
+                <a 
+                  href="https://unhyphenated.com" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-zinc-400 hover:text-black transition-all cursor-pointer font-bold text-lg tracking-tight"
+                  style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}
+                >
+                  un-
+                </a>
+              </div>
+              <p className="text-xs text-zinc-400 font-mono">
+                Made by Julian Jong <span className="text-zinc-300">(Unhyphenated)</span>
+              </p>
             </div>
-            <span className="text-sm text-zinc-500 font-medium">© 2026 shrinks.</span>
-          </div>
-          <div className="flex gap-6 text-zinc-400">
-            <Twitter className="w-5 h-5 hover:text-black cursor-pointer transition-colors" />
-            <Github className="w-5 h-5 hover:text-black cursor-pointer transition-colors" />
           </div>
         </div>
       </footer>
