@@ -156,7 +156,7 @@ export function LoginView({ setView }: LoginViewProps) {
           </button>
         </div>
 
-        <div className="mt-8 text-center space-y-2">
+        <div className="mt-8 text-center">
           <button 
             onClick={() => {
               setIsRegister(!isRegister);
@@ -167,7 +167,7 @@ export function LoginView({ setView }: LoginViewProps) {
           >
             {isRegister ? 'Already have an account? Sign in' : "Don't have an account? Register"}
           </button>
-          {!isRegister && (
+          {/* {!isRegister && (
             <div>
               <button 
                 onClick={() => setView('forgot-password')} 
@@ -176,7 +176,7 @@ export function LoginView({ setView }: LoginViewProps) {
                 Forgot your password?
               </button>
             </div>
-          )}
+          )} */}
         </div>
       </div>
       
