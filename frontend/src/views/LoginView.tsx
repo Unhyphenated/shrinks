@@ -65,7 +65,7 @@ export function LoginView({ setView }: LoginViewProps) {
     <div className="max-w-md mx-auto animate-in fade-in slide-in-from-bottom-8 duration-500 pt-12 pb-20">
       <div className="bg-white border-2 border-zinc-900 p-8 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] relative">
         <div className="absolute top-0 right-0 p-2 bg-black text-white text-[10px] font-mono font-bold uppercase">
-          {isRegister ? 'REGISTER' : 'AUTH_V2'}
+          {isRegister ? 'REGISTER' : 'LOGIN'}
         </div>
 
         <div className="mb-8 text-center">
@@ -119,7 +119,7 @@ export function LoginView({ setView }: LoginViewProps) {
               <button 
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-black transition-colors"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-black transition-colors cursor-pointer"
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
@@ -132,7 +132,7 @@ export function LoginView({ setView }: LoginViewProps) {
           <button 
             type="submit"
             disabled={isLoading}
-            className="w-full bg-black text-white py-3 font-bold uppercase tracking-wider hover:bg-[#E11D48] transition-colors border border-black flex items-center justify-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full bg-black text-white py-3 font-bold uppercase tracking-wider hover:bg-[#E11D48] transition-colors border border-black flex items-center justify-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
             {isLoading ? 'Processing...' : (isRegister ? 'Create Account' : 'Sign In')}
             <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
@@ -163,7 +163,7 @@ export function LoginView({ setView }: LoginViewProps) {
               setLocalError(null);
               clearError();
             }}
-            className="text-xs font-mono text-[#E11D48] hover:text-black underline decoration-1 underline-offset-4"
+            className="text-xs font-mono text-[#E11D48] hover:text-black underline decoration-1 underline-offset-4 cursor-pointer"
           >
             {isRegister ? 'Already have an account? Sign in' : "Don't have an account? Register"}
           </button>
@@ -171,7 +171,7 @@ export function LoginView({ setView }: LoginViewProps) {
             <div>
               <button 
                 onClick={() => setView('forgot-password')} 
-                className="text-xs font-mono text-zinc-500 hover:text-[#E11D48] underline decoration-1 underline-offset-4"
+                className="text-xs font-mono text-zinc-500 hover:text-[#E11D48] underline decoration-1 underline-offset-4 cursor-pointer"
               >
                 Forgot your password?
               </button>
