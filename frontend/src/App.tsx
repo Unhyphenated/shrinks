@@ -49,7 +49,7 @@ function AppContent() {
         )}
       </main>
 
-      <footer className="relative border-t-2 border-zinc-200 bg-zinc-50 py-12 mt-auto overflow-hidden">
+      <footer className="relative border-t-2 border-zinc-200 bg-zinc-50 py-6 mt-auto overflow-hidden">
         <div className="max-w-7xl mx-auto px-6 relative z-10">
           <div className="flex flex-col md:flex-row items-center justify-between gap-8">
             {/* Left: Shrinks logo + copyright */}
