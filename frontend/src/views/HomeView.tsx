@@ -141,13 +141,10 @@ export function HomeView({ setView }: HomeViewProps) {
               className="flex-1 bg-white border-none text-zinc-900 placeholder-zinc-400 focus:ring-0 text-lg font-mono py-6 px-6 outline-none"
               disabled={isLoading}
             />
-            <div className="hidden md:flex items-center px-4 bg-white border-l-2 border-zinc-100">
-              <div className="px-2 py-1 bg-zinc-100 text-[10px] font-mono text-zinc-500 font-bold border border-zinc-200">CMD + K</div>
-            </div>
             <button 
               type="submit"
               disabled={isLoading}
-              className="bg-[#E11D48] text-white px-10 py-4 font-bold text-sm uppercase tracking-wider hover:bg-black transition-colors disabled:opacity-50 border-l-2 border-black"
+              className="bg-[#E11D48] text-white px-10 py-4 font-bold text-sm uppercase tracking-wider hover:bg-black transition-colors disabled:opacity-50 border-l-2 border-black cursor-pointer"
             >
               {isLoading ? 'Processing...' : 'Shorten'}
             </button>
