@@ -92,17 +92,16 @@ export function HomeView({ setView }: HomeViewProps) {
       <div className="flex flex-col items-center text-center mb-20">
         <div className="inline-flex items-center gap-2 px-3 py-1 bg-zinc-50 border border-zinc-200 text-[#E11D48] text-xs font-mono mb-8 font-bold uppercase tracking-wider">
           <Terminal className="w-3 h-3" />
-          <span>v2.0.0 Stable</span>
+          <span>v1.0.0</span>
         </div>
         
         <h1 className="text-6xl md:text-8xl font-bold text-zinc-900 tracking-tighter mb-8 max-w-5xl leading-[0.9]">
-          INFRASTRUCTURE <br className="hidden md:block" />
-          FOR <span className="text-[#E11D48]">MODERN LINKS.</span>
+          SHORTEN LINKS, <br className="hidden md:block" />
+          <span className="text-[#E11D48]">NOT YOUR PATIENCE.</span>
         </h1>
         
         <p className="text-xl text-zinc-500 max-w-2xl mb-12 leading-relaxed font-light">
-          The open-source link management platform designed for developers. 
-          High-performance redirects, real-time analytics, and API-first design.
+          A minimal, high-performance link shortener. Shorten URLs, track clicks, and manage your links — all in one place.
         </p>
 
         <div className="w-full max-w-3xl">
