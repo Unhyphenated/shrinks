@@ -29,31 +29,6 @@ export function Navbar({ currentView, setView }: NavbarProps) {
           </span>
         </div>
 
-        <div className="hidden md:flex items-center gap-8 text-sm font-medium text-zinc-500 font-mono uppercase tracking-wider">
-          <button 
-            onClick={() => setView('home')}
-            className={`hover:text-black transition-colors ${currentView === 'home' ? 'text-black font-bold underline decoration-2 underline-offset-4 decoration-[#E11D48]' : ''}`}
-          >
-            Shortener
-          </button>
-          {isAuthenticated && (
-            <>
-              <button 
-                onClick={() => setView('analytics')}
-                className={`hover:text-black transition-colors ${currentView === 'analytics' ? 'text-black font-bold underline decoration-2 underline-offset-4 decoration-[#E11D48]' : ''}`}
-              >
-                Analytics
-              </button>
-              <button 
-                onClick={() => setView('links')}
-                className={`hover:text-black transition-colors ${currentView === 'links' ? 'text-black font-bold underline decoration-2 underline-offset-4 decoration-[#E11D48]' : ''}`}
-              >
-                My Links
-              </button>
-            </>
-          )}
-        </div>
-
         <div className="flex items-center gap-4">
           {isAuthenticated ? (
             <>
@@ -62,7 +37,7 @@ export function Navbar({ currentView, setView }: NavbarProps) {
               </span>
               <button 
                 onClick={handleLogout}
-                className="hidden md:block text-zinc-500 hover:text-black text-sm font-medium font-mono uppercase transition-colors"
+                className="bg-black text-white px-5 py-2 text-sm font-bold hover:bg-[#E11D48] transition-colors uppercase tracking-wider cursor-pointer"
               >
                 Log out
               </button>
@@ -71,15 +46,12 @@ export function Navbar({ currentView, setView }: NavbarProps) {
             currentView !== 'login' && (
               <button 
                 onClick={() => setView('login')}
-                className="hidden md:block text-zinc-500 hover:text-black text-sm font-medium font-mono uppercase transition-colors"
+                className="bg-black text-white px-5 py-2 text-sm font-bold hover:bg-[#E11D48] transition-colors uppercase tracking-wider cursor-pointer"
               >
-                Log in
+                Login
               </button>
             )
           )}
-          <button className="bg-black text-white px-5 py-2 text-sm font-bold hover:bg-[#E11D48] transition-colors border-l-2 border-white hover:border-black uppercase tracking-wider">
-            Console
-          </button>
         </div>
       </div>
     </nav>
