@@ -110,3 +110,9 @@ type ClicksByOS struct {
 	OS     string `db:"os"`
 	Clicks int    `db:"clicks"`
 }
+
+// Global Stats Models
+type GlobalStatsResponse struct {
+	TotalLinks    int `json:"total_links"`
+	TotalRequests int `json:"total_requests"`
+}
