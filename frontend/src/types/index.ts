@@ -93,6 +93,12 @@ export interface AnalyticsSummary {
   clicks_by_os: ClicksByOS[];
 }
 
+// Global Stats types
+export interface GlobalStats {
+  total_links: number;
+  total_requests: number;
+}
+
 // API Error type
 export interface ApiError {
   error: string;

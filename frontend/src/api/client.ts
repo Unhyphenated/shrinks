@@ -5,6 +5,7 @@ import type {
   CreateLinkResponse,
   LinksResponse,
   AnalyticsSummary,
+  GlobalStats,
   ApiError,
 } from '../types';
 
@@ -210,6 +211,13 @@ class ApiClient {
       { method: 'GET' },
       true
     );
+  }
+
+  // Global stats endpoint (public, no auth required)
+  async getGlobalStats(): Promise<GlobalStats> {
+    return this.request<GlobalStats>('/api/v1/links/stats', {
+      method: 'GET',
+    });
   }
 }
 

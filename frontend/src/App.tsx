@@ -36,7 +36,12 @@ function AppContent() {
       <Navbar currentView={view} setView={handleSetView} />
 
       <main className="relative z-10 pt-32 pb-20 max-w-7xl mx-auto px-6">
-        {view === 'home' && <HomeView />}
+        {view === 'home' && (
+          <HomeView 
+            setView={handleSetView} 
+            setSelectedLinkCode={setSelectedLinkCode}
+          />
+        )}
         {view === 'analytics' && <AnalyticsView selectedLinkCode={selectedLinkCode} />}
         {view === 'login' && <LoginView setView={handleSetView} />}
         {view === 'forgot-password' && <ForgotPasswordView setView={handleSetView} />}

@@ -6,29 +6,58 @@ import {
   Check,
   Command,
   Terminal,
+  BarChart2,
 } from 'lucide-react';
 import { BentoItem } from '../components/BentoItem';
 import { apiClient } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
-import type { Link, CreateLinkResponse } from '../types';
+import type { Link, CreateLinkResponse, GlobalStats, ViewState } from '../types';
 
 // Placeholder domain - replace when you secure a domain
 const SHORT_DOMAIN = 'shrinks.io';
 
-export function HomeView() {
+interface HomeViewProps {
+  setView: (v: ViewState) => void;
+  setSelectedLinkCode: (code: string) => void;
+}
+
+export function HomeView({ setView, setSelectedLinkCode }: HomeViewProps) {
   const [url, setUrl] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [, setRecentLinks] = useState<(Link & { short_url: string })[]>([]);
+  const [recentLinks, setRecentLinks] = useState<(Link & { short_url: string })[]>([]);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [justCreated, setJustCreated] = useState<CreateLinkResponse | null>(null);
+  const [globalStats, setGlobalStats] = useState<GlobalStats | null>(null);
+  const [statsLoading, setStatsLoading] = useState(true);
   
   const { isAuthenticated } = useAuth();
+
+  // Fetch global stats on mount
+  useEffect(() => {
+    fetchGlobalStats();
+  }, []);
+
+  const fetchGlobalStats = async () => {
+    setStatsLoading(true);
+    try {
+      const stats = await apiClient.getGlobalStats();
+      setGlobalStats(stats);
+    } catch (err) {
+      console.error('Failed to fetch global stats:', err);
+      // Use fallback data if fetch fails
+      setGlobalStats({ total_links: 0, total_requests: 0 });
+    } finally {
+      setStatsLoading(false);
+    }
+  };
 
   // Fetch user's recent links if authenticated
   useEffect(() => {
     if (isAuthenticated) {
       fetchRecentLinks();
+    } else {
+      setRecentLinks([]);
     }
   }, [isAuthenticated]);
 
@@ -74,6 +103,24 @@ export function HomeView() {
     navigator.clipboard.writeText(text);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const handleViewAnalytics = (shortCode: string) => {
+    setSelectedLinkCode(shortCode);
+    setView('analytics');
+  };
+
+  const formatNumber = (num: number): string => {
+    if (num >= 1_000_000_000) {
+      return (num / 1_000_000_000).toFixed(1) + 'B';
+    }
+    if (num >= 1_000_000) {
+      return (num / 1_000_000).toFixed(1) + 'M';
+    }
+    if (num >= 1_000) {
+      return (num / 1_000).toFixed(1) + 'K';
+    }
+    return num.toString();
   };
 
   return (
@@ -142,9 +189,75 @@ export function HomeView() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-[-1px] mb-24 bg-zinc-200 border border-zinc-200">
-        <BentoItem title="Total Requests" value="2.4B" icon={Activity} />
-        <BentoItem title="Active Links" value="850k" icon={Globe} />
+        <BentoItem 
+          title="Total Requests" 
+          value={statsLoading ? '...' : formatNumber(globalStats?.total_requests || 0)} 
+          icon={Activity} 
+        />
+        <BentoItem 
+          title="Active Links" 
+          value={statsLoading ? '...' : formatNumber(globalStats?.total_links || 0)} 
+          icon={Globe} 
+        />
       </div>
+
+      {/* Recent Links Section - Only show if authenticated and has links */}
+      {isAuthenticated && recentLinks.length > 0 && (
+        <div className="mb-24">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-2xl font-bold text-zinc-900 uppercase tracking-tighter">
+              Recent <span className="text-[#E11D48]">Links</span>
+            </h3>
+            <button
+              onClick={() => setView('links')}
+              className="text-sm font-mono text-zinc-500 hover:text-black transition-colors uppercase"
+            >
+              View All →
+            </button>
+          </div>
+          
+          <div className="grid grid-cols-1 gap-3">
+            {recentLinks.map((link) => (
+              <div
+                key={link.id}
+                className="bg-white border-2 border-zinc-200 p-4 hover:border-black transition-colors group"
+              >
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="font-bold font-mono text-sm text-zinc-900 mb-1">
+                      {SHORT_DOMAIN}/{link.short_code}
+                    </div>
+                    <div className="text-xs text-zinc-400 truncate group-hover:text-[#E11D48] transition-colors">
+                      {link.long_url}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleViewAnalytics(link.short_code)}
+                      className="flex items-center gap-2 px-3 py-2 bg-zinc-100 hover:bg-black hover:text-white border-2 border-zinc-200 hover:border-black text-xs font-bold uppercase transition-colors"
+                      title="View Analytics"
+                    >
+                      <BarChart2 className="w-3 h-3" />
+                      <span className="hidden sm:inline">Analytics</span>
+                    </button>
+                    <button
+                      onClick={() => handleCopy(link.short_url, link.short_code)}
+                      className="p-2 border-2 border-zinc-200 bg-white hover:bg-zinc-100 transition-colors"
+                      title="Copy Link"
+                    >
+                      {copiedId === link.short_code ? (
+                        <Check className="w-4 h-4 text-green-600" />
+                      ) : (
+                        <Copy className="w-4 h-4 text-zinc-400" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
     </div>
   );
