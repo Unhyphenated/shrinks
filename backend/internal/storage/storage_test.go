@@ -16,7 +16,7 @@ import (
 var testStore *PostgresStore
 
 func TestMain(m *testing.M) {
-	err := godotenv.Load("../../.env")
+	err := godotenv.Load("../../../.env")
 	if err != nil {
 		log.Printf("Warning: .env file not found")
 	}
@@ -355,117 +355,117 @@ func TestGetUserLinks_Empty(t *testing.T) {
 
 // Test #34: SaveAnalyticsEvent success
 func TestSaveAnalyticsEvent_Success(t *testing.T) {
-ctx := context.Background()
-email := "save-event-test@example.com"
-defer func() {
-cleanupUser(email)
-}()
+	ctx := context.Background()
+	email := "save-event-test@example.com"
+	defer func() {
+		cleanupUser(email)
+	}()
 
-userID := createTestUser(t, email)
-link := createTestLink(t, &userID)
+	userID := createTestUser(t, email)
+	link := createTestLink(t, &userID)
 
-event := &model.AnalyticsEvent{
-LinkID:     link.ID,
-IPAddress:  "192.168.1.0",
-UserAgent:  "Mozilla/5.0 Test",
-DeviceType: "Desktop",
-OS:         "Windows",
-Browser:    "Chrome 120",
-ClickedAt:  time.Now(),
-}
+	event := &model.AnalyticsEvent{
+		LinkID:     link.ID,
+		IPAddress:  "192.168.1.0",
+		UserAgent:  "Mozilla/5.0 Test",
+		DeviceType: "Desktop",
+		OS:         "Windows",
+		Browser:    "Chrome 120",
+		ClickedAt:  time.Now(),
+	}
 
-err := testStore.SaveAnalyticsEvent(ctx, event)
-if err != nil {
-t.Fatalf("SaveAnalyticsEvent failed: %v", err)
-}
+	err := testStore.SaveAnalyticsEvent(ctx, event)
+	if err != nil {
+		t.Fatalf("SaveAnalyticsEvent failed: %v", err)
+	}
 
-// Verify saved
-events, _ := testStore.GetAnalyticsEvents(ctx, link.ID, time.Now().Add(-time.Hour))
-if len(events) != 1 {
-t.Fatalf("Got %d events, want 1", len(events))
-}
+	// Verify saved
+	events, _ := testStore.GetAnalyticsEvents(ctx, link.ID, time.Now().Add(-time.Hour))
+	if len(events) != 1 {
+		t.Fatalf("Got %d events, want 1", len(events))
+	}
 
-if events[0].Browser != "Chrome 120" {
-t.Errorf("Browser = %s, want Chrome 120", events[0].Browser)
-}
+	if events[0].Browser != "Chrome 120" {
+		t.Errorf("Browser = %s, want Chrome 120", events[0].Browser)
+	}
 }
 
 // Test #35: GetTotalLinks returns correct count
 func TestGetTotalLinks_Success(t *testing.T) {
-ctx := context.Background()
-email := "total-links-test@example.com"
-defer func() {
-cleanupUser(email)
-}()
+	ctx := context.Background()
+	email := "total-links-test@example.com"
+	defer func() {
+		cleanupUser(email)
+	}()
 
-userID := createTestUser(t, email)
+	userID := createTestUser(t, email)
 
-// Get initial count
-initialCount, err := testStore.GetTotalLinks(ctx)
-if err != nil {
-t.Fatalf("GetTotalLinks failed: %v", err)
-}
+	// Get initial count
+	initialCount, err := testStore.GetTotalLinks(ctx)
+	if err != nil {
+		t.Fatalf("GetTotalLinks failed: %v", err)
+	}
 
-// Create 3 links
-for i := 0; i < 3; i++ {
-_, err := testStore.SaveLink(ctx, "https://example.com/link"+string(rune('0'+i)), &userID)
-if err != nil {
-t.Fatalf("Failed to create link: %v", err)
-}
-}
+	// Create 3 links
+	for i := 0; i < 3; i++ {
+		_, err := testStore.SaveLink(ctx, "https://example.com/link"+string(rune('0'+i)), &userID)
+		if err != nil {
+			t.Fatalf("Failed to create link: %v", err)
+		}
+	}
 
-// Get new count
-newCount, err := testStore.GetTotalLinks(ctx)
-if err != nil {
-t.Fatalf("GetTotalLinks failed: %v", err)
-}
+	// Get new count
+	newCount, err := testStore.GetTotalLinks(ctx)
+	if err != nil {
+		t.Fatalf("GetTotalLinks failed: %v", err)
+	}
 
-if newCount != initialCount+3 {
-t.Errorf("Total links = %d, want %d", newCount, initialCount+3)
-}
+	if newCount != initialCount+3 {
+		t.Errorf("Total links = %d, want %d", newCount, initialCount+3)
+	}
 }
 
 // Test #36: GetTotalRequests returns correct count
 func TestGetTotalRequests_Success(t *testing.T) {
-ctx := context.Background()
-email := "total-requests-test@example.com"
-defer func() {
-cleanupUser(email)
-}()
+	ctx := context.Background()
+	email := "total-requests-test@example.com"
+	defer func() {
+		cleanupUser(email)
+	}()
 
-userID := createTestUser(t, email)
-link := createTestLink(t, &userID)
+	userID := createTestUser(t, email)
+	link := createTestLink(t, &userID)
 
-// Get initial count
-initialCount, err := testStore.GetTotalRequests(ctx)
-if err != nil {
-t.Fatalf("GetTotalRequests failed: %v", err)
-}
+	// Get initial count
+	initialCount, err := testStore.GetTotalRequests(ctx)
+	if err != nil {
+		t.Fatalf("GetTotalRequests failed: %v", err)
+	}
 
-// Create 5 analytics events
-now := time.Now()
-for i := 0; i < 5; i++ {
-event := &model.AnalyticsEvent{
-LinkID:     link.ID,
-IPAddress:  "1.1.1.0",
-UserAgent:  "Test",
-DeviceType: "Desktop",
-Browser:    "Chrome",
-OS:         "Windows",
-ClickedAt:  now,
-}
-if err := testStore.SaveAnalyticsEvent(ctx, event); err != nil {
-t.Fatalf("Failed to save event: %v", err)
-}
-}
+	// Create 5 analytics events
+	now := time.Now()
+	for i := 0; i < 5; i++ {
+		event := &model.AnalyticsEvent{
+			LinkID:     link.ID,
+			IPAddress:  "1.1.1.0",
+			UserAgent:  "Test",
+			DeviceType: "Desktop",
+			Browser:    "Chrome",
+			OS:         "Windows",
+			ClickedAt:  now,
+		}
+		if err := testStore.SaveAnalyticsEvent(ctx, event); err != nil {
+			t.Fatalf("Failed to save event: %v", err)
+		}
+	}
 
-// Get new count
-newCount, err := testStore.GetTotalRequests(ctx)
-if err != nil {
-t.Fatalf("GetTotalRequests failed: %v", err)
-}
+	// Get new count
+	newCount, err := testStore.GetTotalRequests(ctx)
+	if err != nil {
+		t.Fatalf("GetTotalRequests failed: %v", err)
+	}
 
-if newCount != initialCount+5 {
-t.Errorf("Total requests = %d, want %d", newCount, initialCount+5)
-}
+	if newCount != initialCount+5 {
+		t.Errorf("Total requests = %d, want %d", newCount, initialCount+5)
+	}
 }
