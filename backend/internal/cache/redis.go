@@ -68,5 +68,10 @@ func (c *RedisCache) Set(ctx context.Context, key string, link *model.Link, expi
 }
 
 func (c *RedisCache) Close() {
-	c.Client.Close()
+	err := c.Client.Close()
+	if err != nil {
+		fmt.Printf("failed to close Redis client: %v", err)
+		return
+	}
+	fmt.Println("Successfully closed Redis Client!")
 }
