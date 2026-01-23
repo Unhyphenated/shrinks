@@ -47,6 +47,7 @@ jobs:
               uses: golangci/golangci-lint-action@v6
               with:
                 version: latest
+                working-directory: backend
 
             - name: Set up Go 
               uses: actions/setup-go@v5 
