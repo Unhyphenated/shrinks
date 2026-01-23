@@ -67,7 +67,7 @@ func main() {
 
 	fmt.Println("Server starting on :8080")
 
-	err = http.ListenAndServe(":8080", mux)
+	err = http.ListenAndServe(":8080", handlerCORSMiddleware(mux))
 	if err != nil {
 		log.Fatalf("Server failed to start: %v", err)
 	}
@@ -367,6 +367,21 @@ func handlerDeleteLink(linkService service.LinkProvider) http.HandlerFunc {
 		}
 		w.WriteHeader(http.StatusNoContent)
 	}
+}
+
+func handlerCORSMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
 }
 
 func handlerHealth() http.HandlerFunc {
