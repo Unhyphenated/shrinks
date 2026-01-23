@@ -24,6 +24,7 @@ type LinkProvider interface {
 	GetLinkByCode(ctx context.Context, shortCode string) (*model.Link, error)
 	GetUserLinks(ctx context.Context, userID uint64, limit int, offset int) ([]model.Link, int, error)
 	DeleteLink(ctx context.Context, shortCode string, userID uint64) error
+	GetGlobalStats(ctx context.Context) (*model.GlobalStatsResponse, error)
 	RecordEventBackground(shortCode string, link *model.Link, e *model.AnalyticsEvent)
 }
 
@@ -94,6 +95,23 @@ func (ls *LinkService) GetUserLinks(ctx context.Context, userID uint64, limit in
 
 func (ls *LinkService) DeleteLink(ctx context.Context, shortCode string, userID uint64) error {
 	return ls.Store.DeleteLink(ctx, shortCode, userID)
+}
+
+func (ls *LinkService) GetGlobalStats(ctx context.Context) (*model.GlobalStatsResponse, error) {
+	totalLinks, err := ls.Store.GetTotalLinks(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get total links: %w", err)
+	}
+
+	totalRequests, err := ls.Store.GetTotalRequests(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get total requests: %w", err)
+	}
+
+	return &model.GlobalStatsResponse{
+		TotalLinks:    totalLinks,
+		TotalRequests: totalRequests,
+	}, nil
 }
 
 func (ls *LinkService) RecordEventBackground(shortCode string, link *model.Link, e *model.AnalyticsEvent) {

@@ -23,13 +23,13 @@ type Closer interface {
 }
 
 type LinkStore interface {
-Closer
-SaveLink(ctx context.Context, longURL string, userID *uint64) (string, error)
-GetLinkByCode(ctx context.Context, code string) (*model.Link, error)
-GetUserLinks(ctx context.Context, userID uint64, limit int, offset int) ([]model.Link, int, error)
-DeleteLink(ctx context.Context, shortCode string, userID uint64) error
-GetTotalLinks(ctx context.Context) (int, error)
-GetTotalRequests(ctx context.Context) (int, error)
+	Closer
+	SaveLink(ctx context.Context, longURL string, userID *uint64) (string, error)
+	GetLinkByCode(ctx context.Context, code string) (*model.Link, error)
+	GetUserLinks(ctx context.Context, userID uint64, limit int, offset int) ([]model.Link, int, error)
+	DeleteLink(ctx context.Context, shortCode string, userID uint64) error
+	GetTotalLinks(ctx context.Context) (int, error)
+	GetTotalRequests(ctx context.Context) (int, error)
 }
 
 type AuthStore interface {
@@ -366,7 +366,7 @@ func (s *PostgresStore) DeleteLink(ctx context.Context, shortCode string, userID
 }
 
 func (s *PostgresStore) GetUserLinks(ctx context.Context, userID uint64, limit int, offset int) ([]model.Link, int, error) {
-query := `
+	query := `
 WITH total AS (
 SELECT count(*) as amount FROM links WHERE user_id = $1
 )
@@ -377,51 +377,51 @@ ORDER BY created_at desc
 LIMIT $2 OFFSET $3
 `
 
-rows, err := s.Pool.Query(ctx, query, userID, limit, offset)
-if err != nil {
-return nil, 0, fmt.Errorf("failed to get user links: %w", err)
-}
+	rows, err := s.Pool.Query(ctx, query, userID, limit, offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to get user links: %w", err)
+	}
 
-defer rows.Close()
+	defer rows.Close()
 
-links := []model.Link{}
-total := 0
+	links := []model.Link{}
+	total := 0
 
-for rows.Next() {
-var link model.Link
-err := rows.Scan(
-&link.ID,
-&link.UserID,
-&link.LongURL,
-&link.ShortCode,
-&link.CreatedAt,
-&total,
-)
-if err != nil {
-return nil, 0, fmt.Errorf("failed to scan link: %w", err)
-}
-links = append(links, link)
-}
+	for rows.Next() {
+		var link model.Link
+		err := rows.Scan(
+			&link.ID,
+			&link.UserID,
+			&link.LongURL,
+			&link.ShortCode,
+			&link.CreatedAt,
+			&total,
+		)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to scan link: %w", err)
+		}
+		links = append(links, link)
+	}
 
-return links, total, nil
+	return links, total, nil
 }
 
 func (s *PostgresStore) GetTotalLinks(ctx context.Context) (int, error) {
-query := `SELECT COUNT(*) FROM links`
-var total int
-err := s.Pool.QueryRow(ctx, query).Scan(&total)
-if err != nil {
-return 0, fmt.Errorf("failed to get total links: %w", err)
-}
-return total, nil
+	query := `SELECT COUNT(*) FROM links`
+	var total int
+	err := s.Pool.QueryRow(ctx, query).Scan(&total)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get total links: %w", err)
+	}
+	return total, nil
 }
 
 func (s *PostgresStore) GetTotalRequests(ctx context.Context) (int, error) {
-query := `SELECT COUNT(*) FROM analytics`
-var total int
-err := s.Pool.QueryRow(ctx, query).Scan(&total)
-if err != nil {
-return 0, fmt.Errorf("failed to get total requests: %w", err)
-}
-return total, nil
+	query := `SELECT COUNT(*) FROM analytics`
+	var total int
+	err := s.Pool.QueryRow(ctx, query).Scan(&total)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get total requests: %w", err)
+	}
+	return total, nil
 }

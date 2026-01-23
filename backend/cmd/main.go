@@ -57,6 +57,7 @@ func main() {
 	mux.Handle("GET /api/v1/links/{shortCode}/analytics", auth.RequireAuth(handlerLinkAnalytics(analyticsService, linkService)))
 	mux.Handle("GET /api/v1/links", auth.RequireAuth(handlerListLinks(linkService)))
 	mux.Handle("DELETE /api/v1/links/{shortCode}", auth.RequireAuth(handlerDeleteLink(linkService)))
+	mux.HandleFunc("GET /api/v1/links/stats", handlerGetGlobalStats(linkService))
 
 	mux.HandleFunc("POST /api/v1/auth/register", handlerRegister(authService))
 	mux.HandleFunc("POST /api/v1/auth/login", handlerLogin(authService))
@@ -382,6 +383,18 @@ func handlerCORSMiddleware(next http.Handler) http.Handler {
 
 		next.ServeHTTP(w, r)
 	})
+}
+
+func handlerGetGlobalStats(linkService service.LinkProvider) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		stats, err := linkService.GetGlobalStats(r.Context())
+		if err != nil {
+			log.Printf("Get global stats error: %v", err)
+			util.WriteError(w, http.StatusInternalServerError, "Failed to retrieve global stats")
+			return
+		}
+		util.WriteJSON(w, http.StatusOK, stats)
+	}
 }
 
 func handlerHealth() http.HandlerFunc {

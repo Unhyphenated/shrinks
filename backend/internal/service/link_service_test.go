@@ -240,3 +240,65 @@ func TestRedirect_RecordsAnalytics(t *testing.T) {
 		t.Errorf("IPAddress = %s, want 1.2.3.0", capturedEvent.IPAddress)
 	}
 }
+
+// Test #71: GetGlobalStats returns correct stats
+func TestGetGlobalStats_Success(t *testing.T) {
+	mockStore := newMockStore()
+	mockStore.GetTotalLinksFn = func(ctx context.Context) (int, error) {
+		return 1234, nil
+	}
+	mockStore.GetTotalRequestsFn = func(ctx context.Context) (int, error) {
+		return 56789, nil
+	}
+
+	svc := NewLinkService(mockStore, newMockCache(), newMockAnalytics())
+
+	stats, err := svc.GetGlobalStats(context.Background())
+	if err != nil {
+		t.Fatalf("GetGlobalStats failed: %v", err)
+	}
+
+	if stats.TotalLinks != 1234 {
+		t.Errorf("TotalLinks = %d, want 1234", stats.TotalLinks)
+	}
+
+	if stats.TotalRequests != 56789 {
+		t.Errorf("TotalRequests = %d, want 56789", stats.TotalRequests)
+	}
+}
+
+// Test #72: GetGlobalStats handles store error for links
+func TestGetGlobalStats_LinksError(t *testing.T) {
+	mockStore := newMockStore()
+	mockStore.GetTotalLinksFn = func(ctx context.Context) (int, error) {
+		return 0, errors.New("database error")
+	}
+	mockStore.GetTotalRequestsFn = func(ctx context.Context) (int, error) {
+		return 100, nil
+	}
+
+	svc := NewLinkService(mockStore, newMockCache(), newMockAnalytics())
+
+	_, err := svc.GetGlobalStats(context.Background())
+	if err == nil {
+		t.Error("GetGlobalStats should return error when GetTotalLinks fails")
+	}
+}
+
+// Test #73: GetGlobalStats handles store error for requests
+func TestGetGlobalStats_RequestsError(t *testing.T) {
+	mockStore := newMockStore()
+	mockStore.GetTotalLinksFn = func(ctx context.Context) (int, error) {
+		return 100, nil
+	}
+	mockStore.GetTotalRequestsFn = func(ctx context.Context) (int, error) {
+		return 0, errors.New("database error")
+	}
+
+	svc := NewLinkService(mockStore, newMockCache(), newMockAnalytics())
+
+	_, err := svc.GetGlobalStats(context.Background())
+	if err == nil {
+		t.Error("GetGlobalStats should return error when GetTotalRequests fails")
+	}
+}

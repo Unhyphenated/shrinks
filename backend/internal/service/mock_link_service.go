@@ -12,6 +12,7 @@ type MockLinkService struct {
 	GetLinkByCodeFn         func(ctx context.Context, shortCode string) (*model.Link, error)
 	GetUserLinksFn          func(ctx context.Context, userID uint64, limit int, offset int) ([]model.Link, int, error)
 	DeleteLinkFn            func(ctx context.Context, shortCode string, userID uint64) error
+	GetGlobalStatsFn        func(ctx context.Context) (*model.GlobalStatsResponse, error)
 	RecordEventBackgroundFn func(shortCode string, link *model.Link, e *model.AnalyticsEvent)
 }
 
@@ -48,6 +49,13 @@ func (m *MockLinkService) DeleteLink(ctx context.Context, shortCode string, user
 		return m.DeleteLinkFn(ctx, shortCode, userID)
 	}
 	return nil
+}
+
+func (m *MockLinkService) GetGlobalStats(ctx context.Context) (*model.GlobalStatsResponse, error) {
+	if m.GetGlobalStatsFn != nil {
+		return m.GetGlobalStatsFn(ctx)
+	}
+	return &model.GlobalStatsResponse{}, nil
 }
 
 func (m *MockLinkService) RecordEventBackground(shortCode string, link *model.Link, e *model.AnalyticsEvent) {
