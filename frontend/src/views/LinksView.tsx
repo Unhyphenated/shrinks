@@ -31,10 +31,6 @@ export function LinksView({ setView, setSelectedLinkCode }: LinksViewProps) {
   
   const itemsPerPage = 10;
 
-  useEffect(() => {
-    fetchLinks();
-  }, [currentPage]);
-
   const fetchLinks = async () => {
     setIsLoading(true);
     setError(null);
@@ -50,6 +46,11 @@ export function LinksView({ setView, setSelectedLinkCode }: LinksViewProps) {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchLinks();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage]);
 
   const handleDelete = async (shortCode: string, linkId: number) => {
     if (!confirm('Are you sure you want to delete this link?')) {

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { ClicksByDate } from '../types';
 
 interface BarChartProps {
@@ -6,6 +7,11 @@ interface BarChartProps {
 }
 
 export function BarChart({ data, isLoading }: BarChartProps) {
+  // Generate stable random heights only once for skeleton loaders
+  const [skeletonHeights] = useState(() => 
+    Array.from({ length: 14 }, () => 30 + Math.random() * 50)
+  );
+
   // Use provided data or fallback to placeholder
   const chartData = data && data.length > 0 
     ? data.map(d => d.clicks) 
@@ -16,11 +22,11 @@ export function BarChart({ data, isLoading }: BarChartProps) {
   if (isLoading) {
     return (
       <div className="h-64 flex items-end justify-between gap-1 pt-8 pb-2 px-2 border-b-2 border-black">
-        {Array.from({ length: 14 }).map((_, i) => (
+        {skeletonHeights.map((height, i) => (
           <div key={i} className="group relative flex-1 flex flex-col justify-end h-full">
             <div 
               className="w-full bg-zinc-100 animate-pulse"
-              style={{ height: `${30 + Math.random() * 50}%` }}
+              style={{ height: `${height}%` }}
             />
             <div className="h-2 w-full mt-2 border-t border-zinc-300"></div>
           </div>

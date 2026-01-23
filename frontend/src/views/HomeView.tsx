@@ -2,33 +2,24 @@ import { useState, useEffect } from 'react';
 import { 
   Copy, 
   Activity, 
-  Zap, 
   Globe, 
-  Github, 
   Check,
   Command,
   Terminal,
-  Cpu,
-  Layers,
-  Hash
 } from 'lucide-react';
 import { BentoItem } from '../components/BentoItem';
 import { apiClient } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
-import type { Link, CreateLinkResponse, ViewState } from '../types';
+import type { Link, CreateLinkResponse } from '../types';
 
 // Placeholder domain - replace when you secure a domain
 const SHORT_DOMAIN = 'shrinks.io';
 
-interface HomeViewProps {
-  setView: (v: ViewState) => void;
-}
-
-export function HomeView({ setView }: HomeViewProps) {
+export function HomeView() {
   const [url, setUrl] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [recentLinks, setRecentLinks] = useState<(Link & { short_url: string })[]>([]);
+  const [, setRecentLinks] = useState<(Link & { short_url: string })[]>([]);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [justCreated, setJustCreated] = useState<CreateLinkResponse | null>(null);
   
@@ -84,8 +75,6 @@ export function HomeView({ setView }: HomeViewProps) {
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
   };
-
-  const displayLinks = recentLinks.length > 0 ? recentLinks : [];
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">

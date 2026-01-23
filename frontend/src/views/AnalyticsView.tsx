@@ -32,12 +32,6 @@ export function AnalyticsView({ selectedLinkCode }: AnalyticsViewProps) {
   const [error, setError] = useState<string | null>(null);
   const [period, setPeriod] = useState<Period>('7d');
 
-  useEffect(() => {
-    if (selectedLinkCode) {
-      fetchAnalytics();
-    }
-  }, [selectedLinkCode, period]);
-
   const fetchAnalytics = async () => {
     if (!selectedLinkCode) return;
     
@@ -53,6 +47,13 @@ export function AnalyticsView({ selectedLinkCode }: AnalyticsViewProps) {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (selectedLinkCode) {
+      fetchAnalytics();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedLinkCode, period]);
 
   const getDeviceIcon = (device: string) => {
     const deviceLower = device.toLowerCase();
@@ -138,25 +139,21 @@ export function AnalyticsView({ selectedLinkCode }: AnalyticsViewProps) {
         <BentoItem 
           title="Total Clicks" 
           value={isLoading ? '...' : (analytics?.total_clicks?.toLocaleString() || '0')} 
-          sub={`Period: ${period}`} 
           icon={MousePointer} 
         />
         <BentoItem 
           title="Unique Visitors" 
           value={isLoading ? '...' : (analytics?.unique_visitors?.toLocaleString() || '0')} 
-          sub="Distinct IPs" 
           icon={Activity} 
         />
         <BentoItem 
           title="Avg. Per Day" 
           value={isLoading ? '...' : calculateAvgPerDay(analytics, period)} 
-          sub="Based on period" 
           icon={Zap} 
         />
         <BentoItem 
           title="Bot Traffic" 
           value="<1%" 
-          sub="Filtered automatically" 
           icon={Server} 
         />
       </div>
