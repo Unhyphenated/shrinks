@@ -4,9 +4,7 @@ import {
   Zap,
   Globe,
   BarChart2,
-  Calendar,
   MousePointer,
-  Server,
   Link as LinkIcon,
   Smartphone,
   Monitor,
@@ -162,7 +160,7 @@ export function AnalyticsView({
       )}
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-[-1px] bg-zinc-200 border border-zinc-200 mb-12">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-[-1px] bg-zinc-200 border border-zinc-200 mb-12">
         <BentoItem
           title="Total Clicks"
           value={

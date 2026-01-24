@@ -23,7 +23,7 @@ function AppContent() {
   };
 
   return (
-    <div className="min-h-screen bg-white text-zinc-900 font-sans selection:bg-[#E11D48] selection:text-white">
+    <div className="min-h-screen flex flex-col bg-white text-zinc-900 font-sans selection:bg-[#E11D48] selection:text-white">
       {/* Grid Background */}
       <div
         className="fixed inset-0 pointer-events-none"
@@ -36,7 +36,7 @@ function AppContent() {
 
       <Navbar currentView={view} setView={handleSetView} />
 
-      <main className="relative z-10 pt-32 pb-20 max-w-7xl mx-auto px-6">
+      <main className="relative z-10 pt-32 pb-20 max-w-7xl mx-auto px-6 flex-grow w-full">
         {view === "home" && (
           <HomeView
             setView={handleSetView}

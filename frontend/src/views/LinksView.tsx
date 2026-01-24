@@ -8,6 +8,7 @@ import {
   Trash2,
   BarChart2,
   ArrowLeft,
+  Check,
 } from "lucide-react";
 import { apiClient } from "../api/client";
 import type { Link, ViewState } from "../types";
@@ -25,6 +26,7 @@ export function LinksView({ setView, setSelectedLinkCode }: LinksViewProps) {
   const [total, setTotal] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -86,8 +88,11 @@ export function LinksView({ setView, setSelectedLinkCode }: LinksViewProps) {
 
   const handleCopy = (shortCode: string) => {
     navigator.clipboard.writeText(`${SHORT_DOMAIN}/${shortCode}`);
-  };
 
+    setCopiedId(shortCode);
+
+    setTimeout(() => setCopiedId(null), 2000);
+  };
   const totalPages = Math.ceil(total / itemsPerPage);
 
   // Filter links by search query
@@ -223,7 +228,11 @@ export function LinksView({ setView, setSelectedLinkCode }: LinksViewProps) {
                     className="p-2 hover:bg-zinc-200 hover:cursor-pointer transition-colors"
                     title="Copy"
                   >
-                    <Copy className="w-4 h-4 text-zinc-400 hover:text-black" />
+                    {copiedId === link.short_code ? (
+                      <Check className="w-4 h-4 text-green-600" />
+                    ) : (
+                      <Copy className="w-4 h-4 text-zinc-400 hover:text-black" />
+                    )}
                   </button>
                   <button
                     onClick={() => handleViewAnalytics(link.short_code)}
