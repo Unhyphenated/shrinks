@@ -149,7 +149,7 @@ func handlerLogin(svc auth.AuthProvider) http.HandlerFunc {
 			}
 			return
 		}
-		
+
 		isProduction := os.Getenv("ENV") == "production"
 		sameSite := http.SameSiteLaxMode
 		if isProduction {
@@ -256,7 +256,16 @@ func handlerShorten(svc service.LinkProvider) http.HandlerFunc {
 		shortCode, err := svc.Shorten(r.Context(), req.URL, userID)
 
 		if err != nil {
-			util.WriteError(w, http.StatusInternalServerError, "Failed to shorten URL")
+			switch {
+			case errors.Is(err, service.ErrInvalidURL):
+				util.WriteError(w, http.StatusBadRequest, "Invalid URL")
+			case errors.Is(err, service.ErrURLScheme):
+				util.WriteError(w, http.StatusBadRequest, "Invalid URL scheme")
+			case errors.Is(err, service.ErrURLHost):
+				util.WriteError(w, http.StatusBadRequest, "Invalid URL host")
+			default:
+				util.WriteError(w, http.StatusInternalServerError, "Failed to shorten URL")
+			}
 			return
 		}
 
