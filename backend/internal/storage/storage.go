@@ -383,7 +383,7 @@ func (s *PostgresStore) DeleteLink(ctx context.Context, shortCode string, userID
 	if err != nil {
 		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
-	
+
 	return nil
 }
 

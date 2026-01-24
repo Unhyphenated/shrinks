@@ -8,10 +8,10 @@ import (
 )
 
 type MockCache struct {
-	GetFn   func(ctx context.Context, key string) (*model.Link, error)
-	SetFn   func(ctx context.Context, key string, link *model.Link, expiration time.Duration) error
+	GetFn    func(ctx context.Context, key string) (*model.Link, error)
+	SetFn    func(ctx context.Context, key string, link *model.Link, expiration time.Duration) error
 	DeleteFn func(ctx context.Context, key string) error
-	CloseFn func()
+	CloseFn  func()
 }
 
 // Ensure MockCache implements cache.Cache interface
