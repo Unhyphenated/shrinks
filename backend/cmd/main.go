@@ -149,14 +149,20 @@ func handlerLogin(svc auth.AuthProvider) http.HandlerFunc {
 			}
 			return
 		}
+		
+		isProduction := os.Getenv("ENV") == "production"
+		sameSite := http.SameSiteLaxMode
+		if isProduction {
+			sameSite = http.SameSiteStrictMode
+		}
 
 		http.SetCookie(w, &http.Cookie{
 			Name:     "refresh_token",
 			Value:    authResp.RefreshToken,
 			Path:     "/",
-			HttpOnly: true, // Prevents JS from stealing it (XSS protection)
-			Secure:   true, // Only over HTTPS
-			SameSite: http.SameSiteLaxMode,
+			HttpOnly: true,
+			Secure:   isProduction,
+			SameSite: sameSite,
 			MaxAge:   3600 * 24 * 7, // 7 days
 		})
 
