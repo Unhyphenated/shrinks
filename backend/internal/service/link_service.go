@@ -18,8 +18,8 @@ var (
 	ErrLinkNotFound = errors.New("link not found")
 	ErrNotOwner     = errors.New("not owner")
 	ErrInvalidURL   = errors.New("invalid URL")
-	ErrURLScheme   = errors.New("invalid URL scheme")
-	ErrURLHost   = errors.New("invalid URL host")
+	ErrURLScheme    = errors.New("invalid URL scheme")
+	ErrURLHost      = errors.New("invalid URL host")
 )
 
 type LinkProvider interface {
@@ -51,7 +51,7 @@ func (ls *LinkService) Shorten(ctx context.Context, longURL string, userID *uint
 	if err != nil {
 		return "", err
 	}
-	
+
 	shortCode, err := ls.Store.SaveLink(ctx, longURL, userID)
 	if err != nil {
 		return "", fmt.Errorf("failed to save link: %w", err)

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/Unhyphenated/shrinks-backend/internal/analytics"
 	"github.com/Unhyphenated/shrinks-backend/internal/auth"
@@ -70,7 +71,15 @@ func main() {
 
 	fmt.Println("Server starting on :8080")
 
-	err = http.ListenAndServe(":8080", handlerCORSMiddleware(mux))
+	server := &http.Server{
+		Addr:         ":8080",
+		Handler:      handlerCORSMiddleware(mux),
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  60 * time.Second,
+	}
+
+	err = server.ListenAndServe()
 	if err != nil {
 		log.Fatalf("Server failed to start: %v", err)
 	}
@@ -408,7 +417,7 @@ func handlerCORSMiddleware(next http.Handler) http.Handler {
 				break
 			}
 		}
-		
+
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 
