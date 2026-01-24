@@ -148,7 +148,7 @@ func validateURL(rawUrl string) error {
 		return ErrInvalidURL
 	}
 
-	if parsed.Scheme != "http" || parsed.Scheme != "https" {
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
 		return ErrURLScheme
 	}
 
