@@ -1,23 +1,31 @@
 import type {
+  User,
   AuthResponse,
   RegisterResponse,
   RefreshTokenResponse,
   CreateLinkResponse,
   LinksResponse,
   AnalyticsSummary,
+  GlobalStats,
   ApiError,
-} from '../types';
+} from "../types";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+const API_BASE_URL = import.meta.env.VITE_API_URL || "";
 
-// Token storage (in-memory only, not localStorage)
-let accessToken: string | null = null;
-let refreshToken: string | null = null;
+// Token storage keys
+const ACCESS_TOKEN_KEY = "access_token";
+const REFRESH_TOKEN_KEY = "refresh_token";
+
+// Token storage with localStorage for persistence
+let accessToken: string | null = localStorage.getItem(ACCESS_TOKEN_KEY);
+let refreshToken: string | null = localStorage.getItem(REFRESH_TOKEN_KEY);
 let onUnauthorized: (() => void) | null = null;
 
 export const setTokens = (access: string, refresh: string) => {
   accessToken = access;
   refreshToken = refresh;
+  localStorage.setItem(ACCESS_TOKEN_KEY, access);
+  localStorage.setItem(REFRESH_TOKEN_KEY, refresh);
 };
 
 export const getAccessToken = () => accessToken;
@@ -26,6 +34,8 @@ export const getRefreshToken = () => refreshToken;
 export const clearTokens = () => {
   accessToken = null;
   refreshToken = null;
+  localStorage.removeItem(ACCESS_TOKEN_KEY);
+  localStorage.removeItem(REFRESH_TOKEN_KEY);
 };
 
 export const setOnUnauthorized = (callback: () => void) => {
@@ -45,10 +55,10 @@ class ApiClient {
     endpoint: string,
     options: RequestInit = {},
     requiresAuth = false,
-    retry = true
+    retry = true,
   ): Promise<T> {
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     };
 
     // Merge existing headers
@@ -58,7 +68,7 @@ class ApiClient {
     }
 
     if (accessToken && (requiresAuth || accessToken)) {
-      headers['Authorization'] = `Bearer ${accessToken}`;
+      headers["Authorization"] = `Bearer ${accessToken}`;
     }
 
     const response = await fetch(`${this.baseUrl}${endpoint}`, {
@@ -73,7 +83,7 @@ class ApiClient {
         return this.request<T>(endpoint, options, requiresAuth, false);
       } else {
         onUnauthorized?.();
-        throw new Error('Session expired. Please log in again.');
+        throw new Error("Session expired. Please log in again.");
       }
     }
 
@@ -103,7 +113,7 @@ class ApiClient {
 
     this.isRefreshing = true;
     this.refreshPromise = this.doRefresh();
-    
+
     try {
       return await this.refreshPromise;
     } finally {
@@ -117,8 +127,8 @@ class ApiClient {
 
     try {
       const response = await fetch(`${this.baseUrl}/api/v1/auth/refresh`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ refresh_token: refreshToken }),
       });
 
@@ -138,15 +148,15 @@ class ApiClient {
 
   // Auth endpoints
   async register(email: string, password: string): Promise<RegisterResponse> {
-    return this.request<RegisterResponse>('/api/v1/auth/register', {
-      method: 'POST',
+    return this.request<RegisterResponse>("/api/v1/auth/register", {
+      method: "POST",
       body: JSON.stringify({ email, password }),
     });
   }
 
   async login(email: string, password: string): Promise<AuthResponse> {
-    const response = await this.request<AuthResponse>('/api/v1/auth/login', {
-      method: 'POST',
+    const response = await this.request<AuthResponse>("/api/v1/auth/login", {
+      method: "POST",
       body: JSON.stringify({ email, password }),
     });
     setTokens(response.access_token, response.refresh_token);
@@ -156,8 +166,8 @@ class ApiClient {
   async logout(): Promise<void> {
     if (refreshToken) {
       try {
-        await this.request('/api/v1/auth/logout', {
-          method: 'POST',
+        await this.request("/api/v1/auth/logout", {
+          method: "POST",
           body: JSON.stringify({ refresh_token: refreshToken }),
         });
       } catch {
@@ -169,20 +179,23 @@ class ApiClient {
 
   async refreshAccessToken(): Promise<RefreshTokenResponse> {
     if (!refreshToken) {
-      throw new Error('No refresh token available');
+      throw new Error("No refresh token available");
     }
-    const response = await this.request<RefreshTokenResponse>('/api/v1/auth/refresh', {
-      method: 'POST',
-      body: JSON.stringify({ refresh_token: refreshToken }),
-    });
+    const response = await this.request<RefreshTokenResponse>(
+      "/api/v1/auth/refresh",
+      {
+        method: "POST",
+        body: JSON.stringify({ refresh_token: refreshToken }),
+      },
+    );
     accessToken = response.access_token;
     return response;
   }
 
   // Link endpoints
   async shortenUrl(url: string): Promise<CreateLinkResponse> {
-    return this.request<CreateLinkResponse>('/api/v1/links/shorten', {
-      method: 'POST',
+    return this.request<CreateLinkResponse>("/api/v1/links/shorten", {
+      method: "POST",
       body: JSON.stringify({ url }),
     });
   }
@@ -190,25 +203,45 @@ class ApiClient {
   async getLinks(limit = 10, offset = 0): Promise<LinksResponse> {
     return this.request<LinksResponse>(
       `/api/v1/links?limit=${limit}&offset=${offset}`,
-      { method: 'GET' },
-      true
+      { method: "GET" },
+      true,
     );
   }
 
   async deleteLink(shortCode: string): Promise<void> {
     return this.request<void>(
       `/api/v1/links/${shortCode}`,
-      { method: 'DELETE' },
-      true
+      { method: "DELETE" },
+      true,
     );
   }
 
   // Analytics endpoint
-  async getAnalytics(shortCode: string, period = '7d'): Promise<AnalyticsSummary> {
+  async getAnalytics(
+    shortCode: string,
+    period = "7d",
+  ): Promise<AnalyticsSummary> {
     return this.request<AnalyticsSummary>(
       `/api/v1/links/${shortCode}/analytics?period=${period}`,
-      { method: 'GET' },
-      true
+      { method: "GET" },
+      true,
+    );
+  }
+
+  // Global stats endpoint (public, no auth required)
+  async getGlobalStats(): Promise<GlobalStats> {
+    return this.request<GlobalStats>("/api/v1/links/stats", {
+      method: "GET",
+    });
+  }
+
+  async getCurrentUser(): Promise<User> {
+    return this.request<User>(
+      "/api/v1/auth/me",
+      {
+        method: "GET",
+      },
+      true,
     );
   }
 }

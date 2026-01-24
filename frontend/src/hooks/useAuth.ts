@@ -1,7 +1,19 @@
-import { createContext, useContext, useState, useCallback, useEffect, createElement } from 'react';
-import type { ReactNode } from 'react';
-import { apiClient, setOnUnauthorized, clearTokens, setTokens, getAccessToken } from '../api/client';
-import type { User } from '../types';
+import {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useEffect,
+  createElement,
+} from "react";
+import type { ReactNode } from "react";
+import {
+  apiClient,
+  clearTokens,
+  setTokens,
+  getAccessToken,
+} from "../api/client";
+import type { User } from "../types";
 
 interface AuthContextType {
   user: User | null;
@@ -18,17 +30,38 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const isAuthenticated = !!user && !!getAccessToken();
 
   // Set up unauthorized callback
+  // 1. New Effect to check for existing session on mount
   useEffect(() => {
-    setOnUnauthorized(() => {
-      setUser(null);
-      clearTokens();
-    });
+    async function initAuth() {
+      const token = getAccessToken();
+
+      // If no token, we aren't logged in, just stop loading
+      if (!token) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        // 2. Call your new Go endpoint
+        const userData = await apiClient.getCurrentUser();
+        setUser(userData);
+      } catch (err) {
+        // If the token is expired or invalid, wipe it
+        console.error("Session restoration failed:", err);
+        clearTokens();
+        setUser(null);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    initAuth();
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
@@ -38,7 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const response = await apiClient.login(email, password);
       setUser(response.user);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Login failed';
+      const message = err instanceof Error ? err.message : "Login failed";
       setError(message);
       throw err;
     } finally {
@@ -46,21 +79,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const register = useCallback(async (email: string, password: string) => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      await apiClient.register(email, password);
-      // Auto-login after registration
-      await login(email, password);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Registration failed';
-      setError(message);
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [login]);
+  const register = useCallback(
+    async (email: string, password: string) => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        await apiClient.register(email, password);
+        // Auto-login after registration
+        await login(email, password);
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Registration failed";
+        setError(message);
+        throw err;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [login],
+  );
 
   const logout = useCallback(async () => {
     setIsLoading(true);
@@ -94,7 +131,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 export function useAuth(): AuthContextType {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 }

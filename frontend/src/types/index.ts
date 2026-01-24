@@ -93,6 +93,12 @@ export interface AnalyticsSummary {
   clicks_by_os: ClicksByOS[];
 }
 
+// Global Stats types
+export interface GlobalStats {
+  total_links: number;
+  total_requests: number;
+}
+
 // API Error type
 export interface ApiError {
   error: string;
@@ -100,4 +106,10 @@ export interface ApiError {
 }
 
 // View state
-export type ViewState = 'home' | 'analytics' | 'login' | 'forgot-password' | 'email-preview' | 'links';
+export type ViewState =
+  | "home"
+  | "analytics"
+  | "login"
+  | "forgot-password"
+  | "email-preview"
+  | "links";

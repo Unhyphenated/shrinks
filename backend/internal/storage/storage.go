@@ -28,6 +28,8 @@ type LinkStore interface {
 	GetLinkByCode(ctx context.Context, code string) (*model.Link, error)
 	GetUserLinks(ctx context.Context, userID uint64, limit int, offset int) ([]model.Link, int, error)
 	DeleteLink(ctx context.Context, shortCode string, userID uint64) error
+	GetTotalLinks(ctx context.Context) (int, error)
+	GetTotalRequests(ctx context.Context) (int, error)
 }
 
 type AuthStore interface {
@@ -84,6 +86,16 @@ func (s *PostgresStore) SaveLink(ctx context.Context, longURL string, userID *ui
 	err := s.Pool.QueryRow(ctx, "SELECT nextval('links_id_seq')").Scan(&nextID)
 	if err != nil {
 		return "", err
+	}
+
+	// Start IDs at 100000 for better looking short codes
+	if nextID < 100000 {
+		nextID = 100000
+		// Set the sequence to this value
+		_, err = s.Pool.Exec(ctx, "SELECT setval('links_id_seq', $1, false)", nextID)
+		if err != nil {
+			return "", fmt.Errorf("failed to set sequence value: %w", err)
+		}
 	}
 
 	// 2. Generate the code in Go
@@ -365,15 +377,15 @@ func (s *PostgresStore) DeleteLink(ctx context.Context, shortCode string, userID
 
 func (s *PostgresStore) GetUserLinks(ctx context.Context, userID uint64, limit int, offset int) ([]model.Link, int, error) {
 	query := `
-		WITH total AS (
-			SELECT count(*) as amount FROM links WHERE user_id = $1
-		)
-		SELECT id, user_id, long_url, short_code, created_at, total.amount
-		FROM links, total
-		WHERE user_id = $1
-		ORDER BY created_at desc
-		LIMIT $2 OFFSET $3
-	`
+WITH total AS (
+SELECT count(*) as amount FROM links WHERE user_id = $1
+)
+SELECT id, user_id, long_url, short_code, created_at, total.amount
+FROM links, total
+WHERE user_id = $1
+ORDER BY created_at desc
+LIMIT $2 OFFSET $3
+`
 
 	rows, err := s.Pool.Query(ctx, query, userID, limit, offset)
 	if err != nil {
@@ -402,4 +414,24 @@ func (s *PostgresStore) GetUserLinks(ctx context.Context, userID uint64, limit i
 	}
 
 	return links, total, nil
+}
+
+func (s *PostgresStore) GetTotalLinks(ctx context.Context) (int, error) {
+	query := `SELECT COUNT(*) FROM links`
+	var total int
+	err := s.Pool.QueryRow(ctx, query).Scan(&total)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get total links: %w", err)
+	}
+	return total, nil
+}
+
+func (s *PostgresStore) GetTotalRequests(ctx context.Context) (int, error) {
+	query := `SELECT COUNT(*) FROM analytics`
+	var total int
+	err := s.Pool.QueryRow(ctx, query).Scan(&total)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get total requests: %w", err)
+	}
+	return total, nil
 }

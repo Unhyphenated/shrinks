@@ -815,3 +815,59 @@ func TestHandlerLogout_InvalidToken(t *testing.T) {
 		t.Errorf("Status = %d, want %d", rr.Code, http.StatusUnauthorized)
 	}
 }
+
+// Test #87: GetGlobalStats returns correct stats
+func TestHandlerGetGlobalStats_Success(t *testing.T) {
+	mockLinkService := &service.MockLinkService{
+		GetGlobalStatsFn: func(ctx context.Context) (*model.GlobalStatsResponse, error) {
+			return &model.GlobalStatsResponse{
+				TotalLinks:    1500,
+				TotalRequests: 45000,
+			}, nil
+		},
+	}
+
+	handler := handlerGetGlobalStats(mockLinkService)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/links/stats", nil)
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("Status = %d, want %d. Body: %s", rr.Code, http.StatusOK, rr.Body.String())
+	}
+
+	var resp model.GlobalStatsResponse
+	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	if resp.TotalLinks != 1500 {
+		t.Errorf("TotalLinks = %d, want 1500", resp.TotalLinks)
+	}
+
+	if resp.TotalRequests != 45000 {
+		t.Errorf("TotalRequests = %d, want 45000", resp.TotalRequests)
+	}
+}
+
+// Test #88: GetGlobalStats returns 500 on service error
+func TestHandlerGetGlobalStats_ServiceError(t *testing.T) {
+	mockLinkService := &service.MockLinkService{
+		GetGlobalStatsFn: func(ctx context.Context) (*model.GlobalStatsResponse, error) {
+			return nil, errors.New("database connection failed")
+		},
+	}
+
+	handler := handlerGetGlobalStats(mockLinkService)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/links/stats", nil)
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("Status = %d, want %d", rr.Code, http.StatusInternalServerError)
+	}
+}

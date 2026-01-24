@@ -52,11 +52,11 @@ type RefreshTokenResponse struct {
 
 // Link Models
 type Link struct {
-	ID        uint64    `db:"id" redis:"id"`
-	UserID    *uint64   `db:"user_id" redis:"user_id,omitempty"`
-	ShortCode string    `db:"short_code" redis:"short_code"`
-	LongURL   string    `db:"long_url" redis:"long_url"`
-	CreatedAt time.Time `db:"created_at" redis:"created_at"`
+	ID        uint64    `db:"id" redis:"id" json:"id"`
+	UserID    *uint64   `db:"user_id" redis:"user_id,omitempty" json:"user_id,omitempty"`
+	ShortCode string    `db:"short_code" redis:"short_code" json:"short_code"`
+	LongURL   string    `db:"long_url" redis:"long_url" json:"long_url"`
+	CreatedAt time.Time `db:"created_at" redis:"created_at" json:"created_at"`
 }
 
 type CreateLinkRequest struct {
@@ -109,4 +109,10 @@ type ClicksByBrowser struct {
 type ClicksByOS struct {
 	OS     string `db:"os"`
 	Clicks int    `db:"clicks"`
+}
+
+// Global Stats Models
+type GlobalStatsResponse struct {
+	TotalLinks    int `json:"total_links"`
+	TotalRequests int `json:"total_requests"`
 }

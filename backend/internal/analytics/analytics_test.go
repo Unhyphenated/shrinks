@@ -17,7 +17,7 @@ var testStore *storage.PostgresStore
 var testService *AnalyticsService
 
 func TestMain(m *testing.M) {
-	_ = godotenv.Load("../../.env")
+	_ = godotenv.Load("../../../.env")
 
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
