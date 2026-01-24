@@ -80,39 +80,39 @@ func (s *PostgresStore) Close() {
 }
 
 func (s *PostgresStore) SaveLink(ctx context.Context, longURL string, userID *uint64) (string, error) {
-var shortCode string
+	var shortCode string
 
-var nextID uint64
-err := s.Pool.QueryRow(ctx, "SELECT nextval('links_id_seq')").Scan(&nextID)
-if err != nil {
-return "", err
-}
+	var nextID uint64
+	err := s.Pool.QueryRow(ctx, "SELECT nextval('links_id_seq')").Scan(&nextID)
+	if err != nil {
+		return "", err
+	}
 
-// Start IDs at 100000 for better looking short codes
-if nextID < 100000 {
-nextID = 100000
-// Set the sequence to this value
-_, err = s.Pool.Exec(ctx, "SELECT setval('links_id_seq', $1, false)", nextID)
-if err != nil {
-return "", fmt.Errorf("failed to set sequence value: %w", err)
-}
-}
+	// Start IDs at 100000 for better looking short codes
+	if nextID < 100000 {
+		nextID = 100000
+		// Set the sequence to this value
+		_, err = s.Pool.Exec(ctx, "SELECT setval('links_id_seq', $1, false)", nextID)
+		if err != nil {
+			return "", fmt.Errorf("failed to set sequence value: %w", err)
+		}
+	}
 
-// 2. Generate the code in Go
-shortCode = encoding.Encode(nextID)
+	// 2. Generate the code in Go
+	shortCode = encoding.Encode(nextID)
 
-// 3. Insert the full record
-// Note: userID (as *uint64) will be NULL in DB if the pointer is nil
-insertQuery := `
+	// 3. Insert the full record
+	// Note: userID (as *uint64) will be NULL in DB if the pointer is nil
+	insertQuery := `
         INSERT INTO links (id, long_url, short_code, user_id) 
         VALUES ($1, $2, $3, $4);
     `
-_, err = s.Pool.Exec(ctx, insertQuery, nextID, longURL, shortCode, userID)
-if err != nil {
-return "", fmt.Errorf("failed to insert link: %w", err)
-}
+	_, err = s.Pool.Exec(ctx, insertQuery, nextID, longURL, shortCode, userID)
+	if err != nil {
+		return "", fmt.Errorf("failed to insert link: %w", err)
+	}
 
-return shortCode, nil
+	return shortCode, nil
 }
 
 func (s *PostgresStore) GetLinkByCode(ctx context.Context, shortCode string) (*model.Link, error) {

@@ -63,6 +63,7 @@ func main() {
 	mux.HandleFunc("POST /api/v1/auth/login", handlerLogin(authService))
 	mux.HandleFunc("POST /api/v1/auth/refresh", handlerRefresh(authService))
 	mux.HandleFunc("POST /api/v1/auth/logout", handlerLogout(authService))
+	mux.Handle("GET /api/v1/auth/me", auth.RequireAuth(handlerMe()))
 
 	mux.HandleFunc("GET /health", handlerHealth())
 
@@ -147,6 +148,16 @@ func handlerLogin(svc auth.AuthProvider) http.HandlerFunc {
 			}
 			return
 		}
+
+		http.SetCookie(w, &http.Cookie{
+			Name:     "refresh_token",
+			Value:    authResp.RefreshToken,
+			Path:     "/",
+			HttpOnly: true, // Prevents JS from stealing it (XSS protection)
+			Secure:   true, // Only over HTTPS
+			SameSite: http.SameSiteLaxMode,
+			MaxAge:   3600 * 24 * 7, // 7 days
+		})
 
 		util.WriteJSON(w, http.StatusOK, authResp)
 	}
@@ -400,5 +411,17 @@ func handlerGetGlobalStats(linkService service.LinkProvider) http.HandlerFunc {
 func handlerHealth() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		util.WriteJSON(w, http.StatusOK, "OK")
+	}
+}
+
+func handlerMe() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		claims, _ := auth.GetClaimsFromContext(r.Context())
+
+		// Return the user info based on the ID in the token claims
+		util.WriteJSON(w, http.StatusOK, map[string]interface{}{
+			"id":    claims.UserID,
+			"email": claims.Email,
+		})
 	}
 }

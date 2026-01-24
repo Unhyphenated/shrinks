@@ -1,7 +1,15 @@
-import { useState } from 'react';
-import { Lock, Mail, ShieldCheck, Eye, EyeOff, ArrowRight, Github } from 'lucide-react';
-import { useAuth } from '../hooks/useAuth';
-import type { ViewState } from '../types';
+import { useState } from "react";
+import {
+  Lock,
+  Mail,
+  ShieldCheck,
+  Eye,
+  EyeOff,
+  ArrowRight,
+  Github,
+} from "lucide-react";
+import { useAuth } from "../hooks/useAuth";
+import type { ViewState } from "../types";
 
 const GoogleIcon = () => (
   <svg viewBox="0 0 24 24" className="w-5 h-5" aria-hidden="true">
@@ -31,10 +39,10 @@ interface LoginViewProps {
 export function LoginView({ setView }: LoginViewProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [isRegister, setIsRegister] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [localError, setLocalError] = useState<string | null>(null);
-  
+
   const { login, register, isLoading, error, clearError } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -43,7 +51,7 @@ export function LoginView({ setView }: LoginViewProps) {
     clearError();
 
     if (!email || !password) {
-      setLocalError('Please fill in all fields');
+      setLocalError("Please fill in all fields");
       return;
     }
 
@@ -53,7 +61,7 @@ export function LoginView({ setView }: LoginViewProps) {
       } else {
         await login(email, password);
       }
-      setView('home');
+      setView("home");
     } catch {
       // Error is already set in auth context
     }
@@ -65,7 +73,7 @@ export function LoginView({ setView }: LoginViewProps) {
     <div className="max-w-md mx-auto animate-in fade-in slide-in-from-bottom-8 duration-500 pt-12 pb-20">
       <div className="bg-white border-2 border-zinc-900 p-8 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] relative">
         <div className="absolute top-0 right-0 p-2 bg-black text-white text-[10px] font-mono font-bold uppercase">
-          {isRegister ? 'REGISTER' : 'LOGIN'}
+          {isRegister ? "REGISTER" : "LOGIN"}
         </div>
 
         <div className="mb-8 text-center">
@@ -73,10 +81,12 @@ export function LoginView({ setView }: LoginViewProps) {
             <Lock className="w-6 h-6 text-white" />
           </div>
           <h2 className="text-2xl font-bold tracking-tight text-zinc-900 uppercase">
-            {isRegister ? 'Create Account' : 'System Access'}
+            {isRegister ? "Create Account" : "System Access"}
           </h2>
           <p className="text-zinc-500 text-sm mt-2 font-mono">
-            {isRegister ? 'Sign up for a new account' : 'Enter credentials to continue'}
+            {isRegister
+              ? "Sign up for a new account"
+              : "Enter credentials to continue"}
           </p>
         </div>
 
@@ -92,7 +102,7 @@ export function LoginView({ setView }: LoginViewProps) {
               <Mail className="w-3 h-3" />
               Email Address
             </label>
-            <input 
+            <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -108,7 +118,7 @@ export function LoginView({ setView }: LoginViewProps) {
               Password
             </label>
             <div className="relative">
-              <input 
+              <input
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -116,32 +126,44 @@ export function LoginView({ setView }: LoginViewProps) {
                 className="w-full bg-zinc-50 border-2 border-zinc-200 p-3 text-sm font-mono focus:border-black focus:ring-0 outline-none transition-colors placeholder:text-zinc-400"
                 disabled={isLoading}
               />
-              <button 
+              <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-black transition-colors cursor-pointer"
               >
-                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                {showPassword ? (
+                  <EyeOff className="w-4 h-4" />
+                ) : (
+                  <Eye className="w-4 h-4" />
+                )}
               </button>
             </div>
             {isRegister && (
-              <p className="text-[10px] text-zinc-400 font-mono">Minimum 8 characters required</p>
+              <p className="text-[10px] text-zinc-400 font-mono">
+                Minimum 8 characters required
+              </p>
             )}
           </div>
 
-          <button 
+          <button
             type="submit"
             disabled={isLoading}
             className="w-full bg-black text-white py-3 font-bold uppercase tracking-wider hover:bg-[#E11D48] transition-colors border border-black flex items-center justify-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
-            {isLoading ? 'Processing...' : (isRegister ? 'Create Account' : 'Sign In')}
+            {isLoading
+              ? "Processing..."
+              : isRegister
+                ? "Create Account"
+                : "Sign In"}
             <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
           </button>
         </form>
 
         <div className="my-8 flex items-center gap-4">
           <div className="h-px bg-zinc-200 flex-1"></div>
-          <span className="text-[10px] font-bold uppercase text-zinc-400 tracking-widest">Or continue with</span>
+          <span className="text-[10px] font-bold uppercase text-zinc-400 tracking-widest">
+            Or continue with
+          </span>
           <div className="h-px bg-zinc-200 flex-1"></div>
         </div>
 
@@ -157,7 +179,7 @@ export function LoginView({ setView }: LoginViewProps) {
         </div>
 
         <div className="mt-8 text-center">
-          <button 
+          <button
             onClick={() => {
               setIsRegister(!isRegister);
               setLocalError(null);
@@ -165,7 +187,9 @@ export function LoginView({ setView }: LoginViewProps) {
             }}
             className="text-xs font-mono text-[#E11D48] hover:text-black underline decoration-1 underline-offset-4 cursor-pointer"
           >
-            {isRegister ? 'Already have an account? Sign in' : "Don't have an account? Register"}
+            {isRegister
+              ? "Already have an account? Sign in"
+              : "Don't have an account? Register"}
           </button>
           {/* {!isRegister && (
             <div>
@@ -179,8 +203,10 @@ export function LoginView({ setView }: LoginViewProps) {
           )} */}
         </div>
       </div>
-      
-      <div className="mt-6 text-center text-xs text-zinc-400 font-mono">SECURE CONNECTION // 256-BIT ENCRYPTION</div>
+
+      <div className="mt-6 text-center text-xs text-zinc-400 font-mono">
+        SECURE CONNECTION // 256-BIT ENCRYPTION
+      </div>
     </div>
   );
 }

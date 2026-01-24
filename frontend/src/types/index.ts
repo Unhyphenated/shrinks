@@ -106,4 +106,10 @@ export interface ApiError {
 }
 
 // View state
-export type ViewState = 'home' | 'analytics' | 'login' | 'forgot-password' | 'email-preview' | 'links';
+export type ViewState =
+  | "home"
+  | "analytics"
+  | "login"
+  | "forgot-password"
+  | "email-preview"
+  | "links";

@@ -1,5 +1,5 @@
-import { useAuth } from '../hooks/useAuth';
-import type { ViewState } from '../types';
+import { useAuth } from "../hooks/useAuth";
+import type { ViewState } from "../types";
 
 interface NavbarProps {
   currentView: ViewState;
@@ -11,15 +11,15 @@ export function Navbar({ currentView, setView }: NavbarProps) {
 
   const handleLogout = async () => {
     await logout();
-    setView('home');
+    setView("home");
   };
 
   return (
     <nav className="fixed top-0 w-full z-50 border-b-2 border-zinc-200 bg-white/95">
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-        <div 
+        <div
           className="flex items-center gap-2 cursor-pointer group"
-          onClick={() => setView('home')}
+          onClick={() => setView("home")}
         >
           <div className="w-6 h-6 bg-[#E11D48] flex items-center justify-center transition-transform group-hover:rotate-180">
             <span className="font-mono text-white font-bold text-xs">/</span>
@@ -35,7 +35,7 @@ export function Navbar({ currentView, setView }: NavbarProps) {
               <span className="hidden md:block text-sm text-zinc-500 font-mono">
                 {user?.email}
               </span>
-              <button 
+              <button
                 onClick={handleLogout}
                 className="bg-black text-white px-5 py-2 text-sm font-bold hover:bg-[#E11D48] transition-colors uppercase tracking-wider cursor-pointer"
               >
@@ -43,9 +43,9 @@ export function Navbar({ currentView, setView }: NavbarProps) {
               </button>
             </>
           ) : (
-            currentView !== 'login' && (
-              <button 
-                onClick={() => setView('login')}
+            currentView !== "login" && (
+              <button
+                onClick={() => setView("login")}
                 className="bg-black text-white px-5 py-2 text-sm font-bold hover:bg-[#E11D48] transition-colors uppercase tracking-wider cursor-pointer"
               >
                 Login
