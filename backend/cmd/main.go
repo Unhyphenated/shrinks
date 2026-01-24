@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/Unhyphenated/shrinks-backend/internal/analytics"
 	"github.com/Unhyphenated/shrinks-backend/internal/auth"
@@ -383,7 +384,16 @@ func handlerDeleteLink(linkService service.LinkProvider) http.HandlerFunc {
 
 func handlerCORSMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		origin := r.Header.Get("Origin")
+		allowedOrigins := getAllowedOrigins()
+
+		for _, allowed := range allowedOrigins {
+			if origin == allowed || allowed == "*" {
+				w.Header().Set("Access-Control-Allow-Origin", origin)
+				break
+			}
+		}
+		
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 
@@ -394,6 +404,14 @@ func handlerCORSMiddleware(next http.Handler) http.Handler {
 
 		next.ServeHTTP(w, r)
 	})
+}
+
+func getAllowedOrigins() []string {
+	origins := os.Getenv("ALLOWED_ORIGINS")
+	if origins == "" {
+		return []string{"http://localhost:3000, http://localhost:5173"}
+	}
+	return strings.Split(origins, ",")
 }
 
 func handlerGetGlobalStats(linkService service.LinkProvider) http.HandlerFunc {
