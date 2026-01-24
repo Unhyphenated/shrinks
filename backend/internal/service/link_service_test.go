@@ -302,3 +302,50 @@ func TestGetGlobalStats_RequestsError(t *testing.T) {
 		t.Error("GetGlobalStats should return error when GetTotalRequests fails")
 	}
 }
+
+func TestShorten_InvalidURL(t *testing.T) {
+	mockStore := newMockStore()
+	svc := NewLinkService(mockStore, newMockCache(), newMockAnalytics())
+	tests := []struct {
+		name    string
+		url     string
+		wantErr error
+	}{
+		{"empty URL", "", ErrInvalidURL},
+		{"no scheme", "example.com", ErrURLScheme},
+		{"javascript scheme", "javascript:alert(1)", ErrURLScheme},
+		{"data scheme", "data:text/html,<script>alert(1)</script>", ErrURLScheme},
+		{"file scheme", "file:///etc/passwd", ErrURLScheme},
+		{"ftp scheme", "ftp://example.com", ErrURLScheme},
+		{"no host", "http://", ErrURLHost},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := svc.Shorten(context.Background(), tt.url, nil)
+			if err == nil {
+				t.Error("Expected error for invalid URL")
+			}
+			if !errors.Is(err, tt.wantErr) {
+				t.Errorf("Error = %v, want %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestShorten_ValidURLs(t *testing.T) {
+	mockStore := newMockStore()
+	mockStore.SaveLinkFn = func(ctx context.Context, longURL string, userID *uint64) (string, error) { return "abc123", nil }
+	svc := NewLinkService(mockStore, newMockCache(), newMockAnalytics())
+	validURLs := []string{"http://example.com", "https://example.com", "https://example.com/path", "https://example.com/path?query=1", "https://sub.example.com", "http://localhost:8080", "https://example.com:443/path"}
+	for _, url := range validURLs {
+		t.Run(url, func(t *testing.T) {
+			code, err := svc.Shorten(context.Background(), url, nil)
+			if err != nil {
+				t.Errorf("Unexpected error for %s: %v", url, err)
+			}
+			if code == "" {
+				t.Error("Expected non-empty short code")
+			}
+		})
+	}
+}

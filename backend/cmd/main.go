@@ -7,6 +7,8 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
+	"time"
 
 	"github.com/Unhyphenated/shrinks-backend/internal/analytics"
 	"github.com/Unhyphenated/shrinks-backend/internal/auth"
@@ -69,7 +71,15 @@ func main() {
 
 	fmt.Println("Server starting on :8080")
 
-	err = http.ListenAndServe(":8080", handlerCORSMiddleware(mux))
+	server := &http.Server{
+		Addr:         ":8080",
+		Handler:      handlerCORSMiddleware(mux),
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  60 * time.Second,
+	}
+
+	err = server.ListenAndServe()
 	if err != nil {
 		log.Fatalf("Server failed to start: %v", err)
 	}
@@ -149,13 +159,19 @@ func handlerLogin(svc auth.AuthProvider) http.HandlerFunc {
 			return
 		}
 
+		isProduction := os.Getenv("ENV") == "production"
+		sameSite := http.SameSiteLaxMode
+		if isProduction {
+			sameSite = http.SameSiteStrictMode
+		}
+
 		http.SetCookie(w, &http.Cookie{
 			Name:     "refresh_token",
 			Value:    authResp.RefreshToken,
 			Path:     "/",
-			HttpOnly: true, // Prevents JS from stealing it (XSS protection)
-			Secure:   true, // Only over HTTPS
-			SameSite: http.SameSiteLaxMode,
+			HttpOnly: true,
+			Secure:   isProduction,
+			SameSite: sameSite,
 			MaxAge:   3600 * 24 * 7, // 7 days
 		})
 
@@ -249,7 +265,16 @@ func handlerShorten(svc service.LinkProvider) http.HandlerFunc {
 		shortCode, err := svc.Shorten(r.Context(), req.URL, userID)
 
 		if err != nil {
-			util.WriteError(w, http.StatusInternalServerError, "Failed to shorten URL")
+			switch {
+			case errors.Is(err, service.ErrInvalidURL):
+				util.WriteError(w, http.StatusBadRequest, "Invalid URL")
+			case errors.Is(err, service.ErrURLScheme):
+				util.WriteError(w, http.StatusBadRequest, "Invalid URL scheme")
+			case errors.Is(err, service.ErrURLHost):
+				util.WriteError(w, http.StatusBadRequest, "Invalid URL host")
+			default:
+				util.WriteError(w, http.StatusInternalServerError, "Failed to shorten URL")
+			}
 			return
 		}
 
@@ -383,7 +408,16 @@ func handlerDeleteLink(linkService service.LinkProvider) http.HandlerFunc {
 
 func handlerCORSMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		origin := r.Header.Get("Origin")
+		allowedOrigins := getAllowedOrigins()
+
+		for _, allowed := range allowedOrigins {
+			if origin == allowed || allowed == "*" {
+				w.Header().Set("Access-Control-Allow-Origin", origin)
+				break
+			}
+		}
+
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 
@@ -394,6 +428,14 @@ func handlerCORSMiddleware(next http.Handler) http.Handler {
 
 		next.ServeHTTP(w, r)
 	})
+}
+
+func getAllowedOrigins() []string {
+	origins := os.Getenv("ALLOWED_ORIGINS")
+	if origins == "" {
+		return []string{"http://localhost:3000, http://localhost:5173"}
+	}
+	return strings.Split(origins, ",")
 }
 
 func handlerGetGlobalStats(linkService service.LinkProvider) http.HandlerFunc {
