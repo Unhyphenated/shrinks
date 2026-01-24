@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/Unhyphenated/shrinks-backend/internal/encoding"
@@ -359,7 +360,12 @@ func (s *PostgresStore) DeleteLink(ctx context.Context, shortCode string, userID
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 
-	defer tx.Rollback(ctx)
+	defer func() {
+		err := tx.Rollback(ctx)
+		if err != nil {
+			log.Printf("failed to rollback transaction: %v", err)
+		}
+	}()
 
 	query := `
 		DELETE FROM analytics
