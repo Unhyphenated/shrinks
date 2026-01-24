@@ -100,7 +100,18 @@ func (ls *LinkService) GetUserLinks(ctx context.Context, userID uint64, limit in
 }
 
 func (ls *LinkService) DeleteLink(ctx context.Context, shortCode string, userID uint64) error {
-	return ls.Store.DeleteLink(ctx, shortCode, userID)
+	err := ls.Store.DeleteLink(ctx, shortCode, userID)
+	if err != nil {
+		return fmt.Errorf("failed to delete link: %w", err)
+	}
+
+	if ls.Cache != nil {
+		err = ls.Cache.Delete(ctx, shortCode)
+		if err != nil {
+			return fmt.Errorf("failed to delete link from cache: %w", err)
+		}
+	}
+	return nil
 }
 
 func (ls *LinkService) GetGlobalStats(ctx context.Context) (*model.GlobalStatsResponse, error) {

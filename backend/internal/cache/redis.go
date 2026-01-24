@@ -12,6 +12,7 @@ import (
 type Cache interface {
 	Get(ctx context.Context, key string) (*model.Link, error)
 	Set(ctx context.Context, key string, val *model.Link, expiration time.Duration) error
+	Delete(ctx context.Context, key string) error
 	Close()
 }
 
@@ -63,6 +64,14 @@ func (c *RedisCache) Set(ctx context.Context, key string, link *model.Link, expi
 	_, err := pipe.Exec(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to set cache with expiration: %w", err)
+	}
+	return nil
+}
+
+func (c *RedisCache) Delete(ctx context.Context, key string) error {
+	_, err := c.Client.Del(ctx, key).Result()
+	if err != nil {
+		return fmt.Errorf("failed to delete key from Redis: %w", err)
 	}
 	return nil
 }
