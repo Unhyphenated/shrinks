@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/url"
 	"time"
 
 	"github.com/Unhyphenated/shrinks-backend/internal/analytics"
@@ -16,6 +17,9 @@ import (
 var (
 	ErrLinkNotFound = errors.New("link not found")
 	ErrNotOwner     = errors.New("not owner")
+	ErrInvalidURL   = errors.New("invalid URL")
+	ErrURLScheme    = errors.New("invalid URL scheme")
+	ErrURLHost      = errors.New("invalid URL host")
 )
 
 type LinkProvider interface {
@@ -43,8 +47,10 @@ func NewLinkService(s storage.LinkStore, c cache.Cache, a analytics.AnalyticsPro
 }
 
 func (ls *LinkService) Shorten(ctx context.Context, longURL string, userID *uint64) (string, error) {
-	// Rate Limiting
-	// Input Sanitation
+	err := validateURL(longURL)
+	if err != nil {
+		return "", err
+	}
 
 	shortCode, err := ls.Store.SaveLink(ctx, longURL, userID)
 	if err != nil {
@@ -94,7 +100,18 @@ func (ls *LinkService) GetUserLinks(ctx context.Context, userID uint64, limit in
 }
 
 func (ls *LinkService) DeleteLink(ctx context.Context, shortCode string, userID uint64) error {
-	return ls.Store.DeleteLink(ctx, shortCode, userID)
+	err := ls.Store.DeleteLink(ctx, shortCode, userID)
+	if err != nil {
+		return fmt.Errorf("failed to delete link: %w", err)
+	}
+
+	if ls.Cache != nil {
+		err = ls.Cache.Delete(ctx, shortCode)
+		if err != nil {
+			return fmt.Errorf("failed to delete link from cache: %w", err)
+		}
+	}
+	return nil
 }
 
 func (ls *LinkService) GetGlobalStats(ctx context.Context) (*model.GlobalStatsResponse, error) {
@@ -130,4 +147,25 @@ func (ls *LinkService) RecordEventBackground(shortCode string, link *model.Link,
 			log.Printf("failed to record analytics event: %v", err)
 		}
 	}
+}
+
+func validateURL(rawUrl string) error {
+	if rawUrl == "" {
+		return ErrInvalidURL
+	}
+
+	parsed, err := url.Parse(rawUrl)
+	if err != nil {
+		return ErrInvalidURL
+	}
+
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return ErrURLScheme
+	}
+
+	if parsed.Host == "" {
+		return ErrURLHost
+	}
+
+	return nil
 }

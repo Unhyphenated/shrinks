@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/Unhyphenated/shrinks-backend/internal/encoding"
@@ -350,26 +351,43 @@ func (s *PostgresStore) DeleteLink(ctx context.Context, shortCode string, userID
 		return ErrLinkNotFound
 	}
 	if link.UserID != nil && *link.UserID != userID {
-		return ErrLinkNotFound
+		return ErrNotOwner
 	}
 
+	tx, err := s.Pool.Begin(ctx)
+
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+
+	defer func() {
+		err := tx.Rollback(ctx)
+		if err != nil {
+			log.Printf("failed to rollback transaction: %v", err)
+		}
+	}()
+
 	query := `
-		DELETE FROM links
-		WHERE short_code = $1 and user_id = $2
+		DELETE FROM analytics
+		WHERE link_id = $1
 	`
-	_, err = s.Pool.Exec(ctx, query, shortCode, userID)
+	_, err = tx.Exec(ctx, query, link.ID)
+	if err != nil {
+		return fmt.Errorf("failed to delete analytics events: %w", err)
+	}
+
+	query = `
+		DELETE FROM links
+		WHERE id = $1
+	`
+	_, err = tx.Exec(ctx, query, link.ID)
 	if err != nil {
 		return fmt.Errorf("failed to delete link: %w", err)
 	}
 
-	// Remove all analytics events for the link
-	query = `
-		DELETE FROM analytics
-		WHERE link_id IN (SELECT id FROM links WHERE short_code = $1 and user_id = $2)
-	`
-	_, err = s.Pool.Exec(ctx, query, shortCode, userID)
+	err = tx.Commit(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to delete analytics events: %w", err)
+		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
 	return nil
@@ -377,15 +395,15 @@ func (s *PostgresStore) DeleteLink(ctx context.Context, shortCode string, userID
 
 func (s *PostgresStore) GetUserLinks(ctx context.Context, userID uint64, limit int, offset int) ([]model.Link, int, error) {
 	query := `
-WITH total AS (
-SELECT count(*) as amount FROM links WHERE user_id = $1
-)
-SELECT id, user_id, long_url, short_code, created_at, total.amount
-FROM links, total
-WHERE user_id = $1
-ORDER BY created_at desc
-LIMIT $2 OFFSET $3
-`
+		WITH total AS (
+		SELECT count(*) as amount FROM links WHERE user_id = $1
+		)
+		SELECT id, user_id, long_url, short_code, created_at, total.amount
+		FROM links, total
+		WHERE user_id = $1
+		ORDER BY created_at desc
+		LIMIT $2 OFFSET $3
+	`
 
 	rows, err := s.Pool.Query(ctx, query, userID, limit, offset)
 	if err != nil {
