@@ -2,4 +2,4 @@
 builder = "dockerfile"
 
 [deploy]
-startCommand = "sh -c '/usr/local/bin/goose -dir ./migrations postgres \"$DATABASE_URL\" && ./server"
+startCommand = "sh -c '/usr/local/bin/goose -dir ./migrations postgres \"$DATABASE_URL\" && ./server'"
