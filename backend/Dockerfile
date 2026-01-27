@@ -28,4 +28,6 @@ COPY --from=builder /app/server .
 COPY --from=builder /app/db/migrations ./migrations
 
 # Command to run the executable
-CMD ["./server"]
+# CMD ["./server"]
+
+CMD sh -c '/usr/local/bin/goose -dir ./migrations postgres "$DATABSE_URL" up && ./server'
