@@ -414,6 +414,7 @@ func handlerCORSMiddleware(next http.Handler) http.Handler {
 		for _, allowed := range allowedOrigins {
 			if origin == allowed || allowed == "*" {
 				w.Header().Set("Access-Control-Allow-Origin", origin)
+				w.Header().Set("Vary", "Origin")
 				break
 			}
 		}
@@ -433,7 +434,7 @@ func handlerCORSMiddleware(next http.Handler) http.Handler {
 func getAllowedOrigins() []string {
 	origins := os.Getenv("ALLOWED_ORIGINS")
 	if origins == "" {
-		return []string{"http://localhost:3000, http://localhost:5173"}
+		return []string{"http://localhost:3000", "http://localhost:5173"}
 	}
 	return strings.Split(origins, ",")
 }
