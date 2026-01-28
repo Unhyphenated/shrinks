@@ -15,9 +15,7 @@ import { BentoItem } from "../components/BentoItem";
 import { BarChart } from "../components/BarChart";
 import { apiClient } from "../api/client";
 import type { AnalyticsSummary, ViewState } from "../types";
-
-// Placeholder domain
-const SHORT_DOMAIN = "shrinks.io";
+import { SHORT_DOMAIN } from "../api/client";
 
 interface AnalyticsViewProps {
   selectedLinkCode: string | null;

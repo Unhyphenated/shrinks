@@ -17,9 +17,7 @@ import type {
   GlobalStats,
   ViewState,
 } from "../types";
-
-// Placeholder domain - replace when you secure a domain
-const SHORT_DOMAIN = "shrinks.io";
+import { SHORT_DOMAIN } from "../api/client";
 
 interface HomeViewProps {
   setView: (v: ViewState) => void;
