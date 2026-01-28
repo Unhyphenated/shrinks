@@ -55,7 +55,7 @@ func main() {
 	mux := http.NewServeMux()
 
 	mux.Handle("POST /api/v1/links/shorten", auth.OptionalAuth(handlerShorten(linkService)))
-	mux.HandleFunc("GET /api/v1/links/{shortCode}", handlerRedirect(linkService))
+	mux.HandleFunc("GET /{shortCode}", handlerRedirect(linkService))
 	mux.Handle("GET /api/v1/links/{shortCode}/analytics", auth.RequireAuth(handlerLinkAnalytics(analyticsService, linkService)))
 	mux.Handle("GET /api/v1/links", auth.RequireAuth(handlerListLinks(linkService)))
 	mux.Handle("DELETE /api/v1/links/{shortCode}", auth.RequireAuth(handlerDeleteLink(linkService)))

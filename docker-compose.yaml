@@ -53,6 +53,7 @@ services:
       context: ./frontend
       args:
         - VITE_API_URL=http://localhost:8080
+        - VITE_SHORT_DOMAIN=http://localhost:8080
     container_name: shrinks_frontend
     ports:
       - "3000:80"
