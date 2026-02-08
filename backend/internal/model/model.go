@@ -92,27 +92,27 @@ type AnalyticsSummary struct {
 }
 
 type ClicksByDate struct {
-	Date   string `db:"date"`
-	Clicks int    `db:"clicks"`
+	Date   string `db:"date" json:"date"`
+	Clicks int    `db:"clicks" json:"clicks"`
 }
 
 type ClicksByDevice struct {
-	Device string `db:"device"`
-	Clicks int    `db:"clicks"`
+	Device string `db:"device" json:"device"`
+	Clicks int    `db:"clicks" json:"clicks"`
 }
 
 type ClicksByBrowser struct {
-	Browser string `db:"browser"`
-	Clicks  int    `db:"clicks"`
+	Browser string `db:"browser" json:"browser"`
+	Clicks  int    `db:"clicks" json:"clicks"`
 }
 
 type ClicksByOS struct {
-	OS     string `db:"os"`
-	Clicks int    `db:"clicks"`
+	OS     string `db:"os" json:"os"`
+	Clicks int    `db:"clicks" json:"clicks"`
 }
 
 // Global Stats Models
 type GlobalStatsResponse struct {
-	TotalLinks    int `json:"total_links"`
-	TotalRequests int `json:"total_requests"`
+	TotalLinks    int `json:"total_links" db:"total_links"`
+	TotalRequests int `json:"total_requests" db:"total_requests"`
 }
