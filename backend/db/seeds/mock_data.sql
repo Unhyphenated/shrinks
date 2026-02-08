@@ -6,9 +6,9 @@
 -- =============================================
 -- Password for all: "password123" (bcrypt hash)
 INSERT INTO users (email, password_hash) VALUES
-  ('demo@shrinks.io', '$2a$10$N9qo8uLOickgx2ZMRZoMy.MqrqJLlBX5qUhWKLzITn1bVBb3gPKXK'),
-  ('test@example.com', '$2a$10$N9qo8uLOickgx2ZMRZoMy.MqrqJLlBX5qUhWKLzITn1bVBb3gPKXK'),
-  ('alice@example.com', '$2a$10$N9qo8uLOickgx2ZMRZoMy.MqrqJLlBX5qUhWKLzITn1bVBb3gPKXK')
+  ('demo@shrinks.io', '$2a$10$jk69H/S6RnIQHEQFK9wXi.5GB9EpVbpH/eZ2KEL0r1S8hnyF8a0D2'),
+  ('test@example.com', '$2a$10$jk69H/S6RnIQHEQFK9wXi.5GB9EpVbpH/eZ2KEL0r1S8hnyF8a0D2'),
+  ('alice@example.com', '$2a$10$jk69H/S6RnIQHEQFK9wXi.5GB9EpVbpH/eZ2KEL0r1S8hnyF8a0D2')
 ON CONFLICT (email) DO NOTHING;
 
 -- =============================================
