@@ -58,7 +58,7 @@ export function AnalyticsView({
   }, [selectedLinkCode, period]);
 
   const getDeviceIcon = (device: string) => {
-    const deviceLower = device.toLowerCase();
+    const deviceLower = (device || "").toLowerCase();
     if (deviceLower.includes("mobile") || deviceLower.includes("phone")) {
       return Smartphone;
     }
