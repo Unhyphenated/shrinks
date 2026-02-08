@@ -81,38 +81,38 @@ type AnalyticsEvent struct {
 }
 
 type AnalyticsSummary struct {
-	LinkID          uint64            `db:"link_id"`
-	Period          string            `db:"period"`
-	TotalClicks     int               `db:"total_clicks"`
-	UniqueVisitors  int               `db:"unique_visitors"`
-	ClicksByDate    []ClicksByDate    `db:"clicks_by_date"`
-	ClicksByDevice  []ClicksByDevice  `db:"clicks_by_device"`
-	ClicksByBrowser []ClicksByBrowser `db:"clicks_by_browser"`
-	ClicksByOS      []ClicksByOS      `db:"clicks_by_os"`
+	LinkID          uint64            `db:"link_id" json:"link_id"`
+	Period          string            `db:"period" json:"period"`
+	TotalClicks     int               `db:"total_clicks" json:"total_clicks"`
+	UniqueVisitors  int               `db:"unique_visitors" json:"unique_visitors"`
+	ClicksByDate    []ClicksByDate    `db:"clicks_by_date" json:"clicks_by_date"`
+	ClicksByDevice  []ClicksByDevice  `db:"clicks_by_device" json:"clicks_by_device"`
+	ClicksByBrowser []ClicksByBrowser `db:"clicks_by_browser" json:"clicks_by_browser"`
+	ClicksByOS      []ClicksByOS      `db:"clicks_by_os" json:"clicks_by_os"`
 }
 
 type ClicksByDate struct {
-	Date   string `db:"date"`
-	Clicks int    `db:"clicks"`
+	Date   string `db:"date" json:"date"`
+	Clicks int    `db:"clicks" json:"clicks"`
 }
 
 type ClicksByDevice struct {
-	Device string `db:"device"`
-	Clicks int    `db:"clicks"`
+	Device string `db:"device" json:"device"`
+	Clicks int    `db:"clicks" json:"clicks"`
 }
 
 type ClicksByBrowser struct {
-	Browser string `db:"browser"`
-	Clicks  int    `db:"clicks"`
+	Browser string `db:"browser" json:"browser"`
+	Clicks  int    `db:"clicks" json:"clicks"`
 }
 
 type ClicksByOS struct {
-	OS     string `db:"os"`
-	Clicks int    `db:"clicks"`
+	OS     string `db:"os" json:"os"`
+	Clicks int    `db:"clicks" json:"clicks"`
 }
 
 // Global Stats Models
 type GlobalStatsResponse struct {
-	TotalLinks    int `json:"total_links"`
-	TotalRequests int `json:"total_requests"`
+	TotalLinks    int `json:"total_links" db:"total_links"`
+	TotalRequests int `json:"total_requests" db:"total_requests"`
 }

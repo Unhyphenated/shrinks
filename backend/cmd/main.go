@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -55,7 +56,7 @@ func main() {
 	mux := http.NewServeMux()
 
 	mux.Handle("POST /api/v1/links/shorten", auth.OptionalAuth(handlerShorten(linkService)))
-	mux.HandleFunc("GET /api/v1/links/{shortCode}", handlerRedirect(linkService))
+	mux.HandleFunc("GET /{shortCode}", handlerRedirect(linkService))
 	mux.Handle("GET /api/v1/links/{shortCode}/analytics", auth.RequireAuth(handlerLinkAnalytics(analyticsService, linkService)))
 	mux.Handle("GET /api/v1/links", auth.RequireAuth(handlerListLinks(linkService)))
 	mux.Handle("DELETE /api/v1/links/{shortCode}", auth.RequireAuth(handlerDeleteLink(linkService)))
@@ -364,7 +365,22 @@ func handlerListLinks(linkService service.LinkProvider) http.HandlerFunc {
 			return
 		}
 
-		links, total, err := linkService.GetUserLinks(r.Context(), claims.UserID, 10, 0)
+		limit := 10
+		offset := 0
+
+		if l := r.URL.Query().Get("limit"); l != "" {
+			if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 && parsed <= 100 {
+				limit = parsed
+			}
+		}
+
+		if o := r.URL.Query().Get("offset"); o != "" {
+			if parsed, err := strconv.Atoi(o); err == nil && parsed >= 0 {
+				offset = parsed
+			}
+		}
+
+		links, total, err := linkService.GetUserLinks(r.Context(), claims.UserID, limit, offset)
 		if err != nil {
 			util.WriteError(w, http.StatusInternalServerError, "Failed to list links")
 			return
