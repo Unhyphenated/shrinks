@@ -80,7 +80,7 @@ export function AnalyticsView({
         percentage: total > 0 ? Math.round((item.clicks / total) * 100) : 0,
       }))
       .sort((a, b) => b.percentage - a.percentage)
-      .slice(0, 3);
+      .slice(0, 10);
   };
 
   if (!selectedLinkCode) {
