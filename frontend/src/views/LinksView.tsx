@@ -12,9 +12,7 @@ import {
 } from "lucide-react";
 import { apiClient } from "../api/client";
 import type { Link, ViewState } from "../types";
-
-// Placeholder domain - replace when you secure a domain
-const SHORT_DOMAIN = "shrinks.io";
+import { SHORT_DOMAIN } from "../api/client";
 
 interface LinksViewProps {
   setView: (v: ViewState) => void;

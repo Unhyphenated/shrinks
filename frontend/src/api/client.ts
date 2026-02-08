@@ -10,6 +10,7 @@ import type {
   ApiError,
 } from "../types";
 
+export const SHORT_DOMAIN = import.meta.env.VITE_SHORT_DOMAIN || window.location.host;
 const API_BASE_URL = import.meta.env.VITE_API_URL || "";
 
 // Token storage keys

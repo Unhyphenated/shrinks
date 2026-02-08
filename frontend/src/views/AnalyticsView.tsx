@@ -15,9 +15,7 @@ import { BentoItem } from "../components/BentoItem";
 import { BarChart } from "../components/BarChart";
 import { apiClient } from "../api/client";
 import type { AnalyticsSummary, ViewState } from "../types";
-
-// Placeholder domain
-const SHORT_DOMAIN = "shrinks.io";
+import { SHORT_DOMAIN } from "../api/client";
 
 interface AnalyticsViewProps {
   selectedLinkCode: string | null;
@@ -60,7 +58,7 @@ export function AnalyticsView({
   }, [selectedLinkCode, period]);
 
   const getDeviceIcon = (device: string) => {
-    const deviceLower = device.toLowerCase();
+    const deviceLower = (device || "").toLowerCase();
     if (deviceLower.includes("mobile") || deviceLower.includes("phone")) {
       return Smartphone;
     }
@@ -82,7 +80,7 @@ export function AnalyticsView({
         percentage: total > 0 ? Math.round((item.clicks / total) * 100) : 0,
       }))
       .sort((a, b) => b.percentage - a.percentage)
-      .slice(0, 3);
+      .slice(0, 10);
   };
 
   if (!selectedLinkCode) {
