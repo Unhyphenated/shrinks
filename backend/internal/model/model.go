@@ -81,14 +81,14 @@ type AnalyticsEvent struct {
 }
 
 type AnalyticsSummary struct {
-	LinkID          uint64            `db:"link_id"`
-	Period          string            `db:"period"`
-	TotalClicks     int               `db:"total_clicks"`
-	UniqueVisitors  int               `db:"unique_visitors"`
-	ClicksByDate    []ClicksByDate    `db:"clicks_by_date"`
-	ClicksByDevice  []ClicksByDevice  `db:"clicks_by_device"`
-	ClicksByBrowser []ClicksByBrowser `db:"clicks_by_browser"`
-	ClicksByOS      []ClicksByOS      `db:"clicks_by_os"`
+	LinkID          uint64            `db:"link_id" json:"link_id"`
+	Period          string            `db:"period" json:"period"`
+	TotalClicks     int               `db:"total_clicks" json:"total_clicks"`
+	UniqueVisitors  int               `db:"unique_visitors" json:"unique_visitors"`
+	ClicksByDate    []ClicksByDate    `db:"clicks_by_date" json:"clicks_by_date"`
+	ClicksByDevice  []ClicksByDevice  `db:"clicks_by_device" json:"clicks_by_device"`
+	ClicksByBrowser []ClicksByBrowser `db:"clicks_by_browser" json:"clicks_by_browser"`
+	ClicksByOS      []ClicksByOS      `db:"clicks_by_os" json:"clicks_by_os"`
 }
 
 type ClicksByDate struct {
