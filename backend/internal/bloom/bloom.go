@@ -1,6 +1,7 @@
 package bloom
 
 import (
+	"hash/fnv"
 	"math"
 	"sync"
 )
@@ -27,4 +28,36 @@ func NewBloomFilter(expectedItems uint64, falsePositiveRate float64) *BloomFilte
 	}
 }
 
-func (bf *BloomFilter) Add(shortCode string)
+func (bf *BloomFilter) Add(shortCode string) {
+	h1, h2 := bf.hashes(shortCode)
+
+	bf.mtx.Lock()
+	defer bf.mtx.Unlock()
+	for i := uint64(0); i < bf.hashCount; i++ {
+		pos := (h1 + i * h2) % bf.bitCount
+		bf.bitSet[pos / 8] |= (1 << (pos % 8))
+	}
+	bf.itemCount++
+}
+
+func (bf *BloomFilter) MightContain(shortCode string) bool {
+	h1, h2 := bf.hashes(shortCode)
+
+	bf.mtx.RLock()
+	defer bf.mtx.RUnlock()
+	for i := uint64(0); i < bf.hashCount; i++ {
+		pos := (h1 + i * h2) % bf.bitCount
+		if (bf.bitSet[pos / 8] & (1 << (pos % 8)) == 0) {
+			return false
+		}
+	}
+	return true
+}
+
+func (bf *BloomFilter) hashes(shortCode string) (uint64, uint64) {
+	h1, h2 := fnv.New64(), fnv.New64a()
+	h1.Write([]byte(shortCode))
+	h2.Write([]byte(shortCode))
+
+	return h1.Sum64(), h2.Sum64()
+}
