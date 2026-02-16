@@ -5,8 +5,6 @@
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker)](https://www.docker.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-# Shrinks
-
 **A production-grade URL shortener built to demonstrate backend systems design at scale.** Handles 5,000+ requests/second with sub-5ms P99 latency using Go, PostgreSQL, and Redis. Features JWT authentication, per-link analytics, a Bloom filter for collision detection, and a React dashboard — all containerized with Docker Compose and tested through CI.
 
 ## Architecture
