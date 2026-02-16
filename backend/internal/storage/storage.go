@@ -31,6 +31,7 @@ type LinkStore interface {
 	GetUserLinks(ctx context.Context, userID uint64, limit int, offset int) ([]model.Link, int, error)
 	DeleteLink(ctx context.Context, shortCode string, userID uint64) error
 	GetTotalLinks(ctx context.Context) (int, error)
+	GetAllCodes(ctx context.Context) ([]string, error)
 	GetTotalRequests(ctx context.Context) (int, error)
 }
 
@@ -456,6 +457,31 @@ func (s *PostgresStore) GetTotalLinks(ctx context.Context) (int, error) {
 		return 0, fmt.Errorf("failed to get total links: %w", err)
 	}
 	return total, nil
+}
+
+func (s *PostgresStore) GetAllCodes(ctx context.Context) ([]string, error) {
+	query := `
+		SELECT short_code
+		FROM links
+	`
+
+	rows, err := s.Pool.Query(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get all link codes: %w", err)
+	}
+	defer rows.Close()
+
+	var codes []string
+	for rows.Next() {
+		var code string
+		err := rows.Scan(&code)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan code: %w", err)
+		}
+		codes = append(codes, code)
+	}
+
+	return codes, nil
 }
 
 func (s *PostgresStore) GetTotalRequests(ctx context.Context) (int, error) {

@@ -8,9 +8,11 @@ import (
 
 type MockStore struct {
 	SaveLinkFn           func(ctx context.Context, longURL string, userID *uint64) (string, error)
+	SaveLinkWithCodeFn   func(ctx context.Context, code string, longURL string, userID *uint64) error
 	GetLinkByCodeFn      func(ctx context.Context, shortURL string) (*model.Link, error)
 	GetUserLinksFn       func(ctx context.Context, userID uint64, limit int, offset int) ([]model.Link, int, error)
 	DeleteLinkFn         func(ctx context.Context, shortCode string, userID uint64) error
+	GetAllCodesFn        func(ctx context.Context) ([]string, error)
 	GetTotalLinksFn      func(ctx context.Context) (int, error)
 	GetTotalRequestsFn   func(ctx context.Context) (int, error)
 	GetAnalyticsEventsFn func(ctx context.Context, linkID uint64, startDate, endDate time.Time) ([]*model.AnalyticsEvent, error)
@@ -21,6 +23,10 @@ var _ LinkStore = (*MockStore)(nil)
 
 func (m *MockStore) SaveLink(ctx context.Context, longURL string, userID *uint64) (string, error) {
 	return m.SaveLinkFn(ctx, longURL, userID)
+}
+
+func (m *MockStore) SaveLinkWithCode(ctx context.Context, code string, longURL string, userID *uint64) error {
+	return m.SaveLinkWithCodeFn(ctx, code, longURL, userID)
 }
 
 func (m *MockStore) GetLinkByCode(ctx context.Context, shortURL string) (*model.Link, error) {
@@ -37,6 +43,10 @@ func (m *MockStore) DeleteLink(ctx context.Context, shortCode string, userID uin
 
 func (m *MockStore) GetTotalLinks(ctx context.Context) (int, error) {
 	return m.GetTotalLinksFn(ctx)
+}
+
+func (m *MockStore) GetAllCodes(ctx context.Context) ([]string, error) {
+	return m.GetAllCodesFn(ctx)
 }
 
 func (m *MockStore) GetTotalRequests(ctx context.Context) (int, error) {

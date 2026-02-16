@@ -10,6 +10,7 @@ import (
 
 	"github.com/Unhyphenated/shrinks-backend/internal/analytics"
 	"github.com/Unhyphenated/shrinks-backend/internal/auth"
+	"github.com/Unhyphenated/shrinks-backend/internal/bloom"
 	"github.com/Unhyphenated/shrinks-backend/internal/cache"
 	"github.com/Unhyphenated/shrinks-backend/internal/model"
 	"github.com/Unhyphenated/shrinks-backend/internal/service"
@@ -49,7 +50,7 @@ func TestMain(m *testing.M) {
 
 	testAuth = auth.NewAuthService(testStore)
 	testAnalytics = analytics.NewAnalyticsService(testStore)
-	testLink = service.NewLinkService(testStore, testCache, testAnalytics)
+	testLink = service.NewLinkService(testStore, testCache, testAnalytics, bloom.NewBloomFilter(1000, 0.01))
 
 	os.Setenv("JWT_SECRET", "integration-test-secret")
 

@@ -44,11 +44,12 @@ type LinkService struct {
 	Bloom	*bloom.BloomFilter
 }
 
-func NewLinkService(s storage.LinkStore, c cache.Cache, a analytics.AnalyticsProvider) *LinkService {
+func NewLinkService(s storage.LinkStore, c cache.Cache, a analytics.AnalyticsProvider, bf *bloom.BloomFilter) *LinkService {
 	return &LinkService{
 		Store:     s,
 		Cache:     c,
 		Analytics: a,
+		Bloom: bf,
 	}
 }
 
@@ -92,7 +93,10 @@ func (ls *LinkService) ShortenRandom(ctx context.Context, longURL string, userID
 		if err != nil {
 			return "", err
 		}
-		ls.Bloom.Add(shortCode)
+	
+		if ls.Bloom != nil {
+			ls.Bloom.Add(shortCode)
+		}
 		return shortCode, nil
 
 	}
