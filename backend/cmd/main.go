@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/Unhyphenated/shrinks-backend/internal/analytics"
 	"github.com/Unhyphenated/shrinks-backend/internal/auth"
+	"github.com/Unhyphenated/shrinks-backend/internal/bloom"
 	"github.com/Unhyphenated/shrinks-backend/internal/cache"
 	"github.com/Unhyphenated/shrinks-backend/internal/model"
 	"github.com/Unhyphenated/shrinks-backend/internal/service"
@@ -27,6 +29,13 @@ func main() {
 	// Create PostgresStore & RedisCache
 	dbURL := os.Getenv("DATABASE_URL")
 	redisURL := os.Getenv("REDIS_URL")
+
+	// Random used Bloom Filter implementation
+	mode := os.Getenv("MODE")
+	falsePositiveRate, err := strconv.ParseFloat(os.Getenv("FALSE_POSITIVE_RATE"), 64)
+	if err != nil {
+		falsePositiveRate = 0.01 // Default false positive rate
+	}
 
 	if dbURL == "" {
 		log.Fatal("DATABASE_URL environment variable is not set. Cannot connect to Postgres.")
@@ -49,13 +58,31 @@ func main() {
 	}
 	defer cache.Close()
 
+	total, err := store.GetTotalLinks(context.Background())
+	if err != nil {
+		log.Fatalf("Failed to retrieve link count %v", err)
+	}
+
+	var bloomFilter *bloom.BloomFilter
+	if mode == "random" {
+		bloomFilter = bloom.NewBloomFilter(uint64(total * 2), falsePositiveRate)
+		codes, err := store.GetAllCodes(context.Background())
+		if err != nil {
+			log.Fatalf("Failed to retrieve codes %v", err)
+		}
+
+		for _, code := range codes {
+			bloomFilter.Add(code)
+		}
+	}
+
 	analyticsService := analytics.NewAnalyticsService(store)
-	linkService := service.NewLinkService(store, cache, analyticsService)
+	linkService := service.NewLinkService(store, cache, analyticsService, bloomFilter)
 	authService := auth.NewAuthService(store)
 
 	mux := http.NewServeMux()
 
-	mux.Handle("POST /api/v1/links/shorten", auth.OptionalAuth(handlerShorten(linkService)))
+	mux.Handle("POST /api/v1/links/shorten", auth.OptionalAuth(handlerShorten(linkService, mode)))
 	mux.HandleFunc("GET /{shortCode}", handlerRedirect(linkService))
 	mux.Handle("GET /api/v1/links/{shortCode}/analytics", auth.RequireAuth(handlerLinkAnalytics(analyticsService, linkService)))
 	mux.Handle("GET /api/v1/links", auth.RequireAuth(handlerListLinks(linkService)))
@@ -243,7 +270,7 @@ func handlerRefresh(svc auth.AuthProvider) http.HandlerFunc {
 	}
 }
 
-func handlerShorten(svc service.LinkProvider) http.HandlerFunc {
+func handlerShorten(svc service.LinkProvider, mode string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req model.CreateLinkRequest
 
@@ -263,7 +290,14 @@ func handlerShorten(svc service.LinkProvider) http.HandlerFunc {
 			userID = &claims.UserID
 		}
 
-		shortCode, err := svc.Shorten(r.Context(), req.URL, userID)
+		var shortCode string
+		var err error
+		// if random use random else sequential
+		if mode == "random" {
+			shortCode, err = svc.ShortenRandom(r.Context(), req.URL, userID)
+		} else {
+			shortCode, err = svc.Shorten(r.Context(), req.URL, userID)
+		}
 
 		if err != nil {
 			switch {
