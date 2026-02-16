@@ -73,7 +73,7 @@ func main() {
 
 	var bloomFilter *bloom.BloomFilter
 	if mode == "random" {
-		bloomFilter = bloom.NewBloomFilter(expectedItems, falsePositiveRate)
+		bloomFilter = bloom.NewBloomFilter(uint64(total*2), falsePositiveRate)
 		codes, err := store.GetAllCodes(context.Background())
 		if err != nil {
 			log.Fatalf("Failed to retrieve codes %v", err)
