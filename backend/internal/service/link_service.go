@@ -9,10 +9,14 @@ import (
 	"time"
 
 	"github.com/Unhyphenated/shrinks-backend/internal/analytics"
+	"github.com/Unhyphenated/shrinks-backend/internal/bloom"
 	"github.com/Unhyphenated/shrinks-backend/internal/cache"
+	"github.com/Unhyphenated/shrinks-backend/internal/encoding"
 	"github.com/Unhyphenated/shrinks-backend/internal/model"
 	"github.com/Unhyphenated/shrinks-backend/internal/storage"
 )
+
+const MaxRetries = 5
 
 var (
 	ErrLinkNotFound = errors.New("link not found")
@@ -24,6 +28,7 @@ var (
 
 type LinkProvider interface {
 	Shorten(ctx context.Context, longURL string, userID *uint64) (string, error)
+	ShortenRandom(ctx context.Context, longURL string, userID *uint64) (string, error)
 	Redirect(ctx context.Context, shortCode string, event *model.AnalyticsEvent) (string, error)
 	GetLinkByCode(ctx context.Context, shortCode string) (*model.Link, error)
 	GetUserLinks(ctx context.Context, userID uint64, limit int, offset int) ([]model.Link, int, error)
@@ -36,6 +41,7 @@ type LinkService struct {
 	Store     storage.LinkStore // The Store interface is the dependency
 	Cache     cache.Cache
 	Analytics analytics.AnalyticsProvider
+	Bloom	*bloom.BloomFilter
 }
 
 func NewLinkService(s storage.LinkStore, c cache.Cache, a analytics.AnalyticsProvider) *LinkService {
@@ -57,6 +63,41 @@ func (ls *LinkService) Shorten(ctx context.Context, longURL string, userID *uint
 		return "", fmt.Errorf("failed to save link: %w", err)
 	}
 	return shortCode, nil
+}
+
+func (ls *LinkService) ShortenRandom(ctx context.Context, longURL string, userID *uint64) (string, error) {
+	// Validate URL
+	if err := validateURL(longURL); err != nil {
+		return "", err
+	}
+
+	for i := 0; i < MaxRetries; i++ {
+		shortCode, err := encoding.GenerateCode()
+		if err != nil {
+			return "", err
+		}
+
+		if ls.Bloom != nil && ls.Bloom.MightContain(shortCode) {
+			link, err := ls.Store.GetLinkByCode(ctx, shortCode)
+			if err != nil {
+				return "", err
+			}
+
+            if link != nil {
+                continue // Real collision, loop again for a new code
+            }
+		}
+
+		err = ls.Store.SaveLinkWithCode(ctx, shortCode, longURL, userID)
+		if err != nil {
+			return "", err
+		}
+		ls.Bloom.Add(shortCode)
+		return shortCode, nil
+
+	}
+
+	return "", fmt.Errorf("failed to generate unique code after %d attempts", MaxRetries)
 }
 
 func (ls *LinkService) Redirect(ctx context.Context, shortCode string, event *model.AnalyticsEvent) (string, error) {

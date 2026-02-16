@@ -26,6 +26,7 @@ type Closer interface {
 type LinkStore interface {
 	Closer
 	SaveLink(ctx context.Context, longURL string, userID *uint64) (string, error)
+	SaveLinkWithCode(ctx context.Context, shortCode string, longURL string, userID *uint64) error
 	GetLinkByCode(ctx context.Context, code string) (*model.Link, error)
 	GetUserLinks(ctx context.Context, userID uint64, limit int, offset int) ([]model.Link, int, error)
 	DeleteLink(ctx context.Context, shortCode string, userID uint64) error
@@ -114,6 +115,19 @@ func (s *PostgresStore) SaveLink(ctx context.Context, longURL string, userID *ui
 	}
 
 	return shortCode, nil
+}
+
+func (s *PostgresStore) SaveLinkWithCode(ctx context.Context, shortCode string, longURL string, userID *uint64) error {
+	insertQuery := `
+		INSERT INTO links (long_url, short_code, user_id) 
+		 VALUES ($1, $2, $3);
+    `
+	_, err := s.Pool.Exec(ctx, insertQuery, longURL, shortCode, userID)
+	if err != nil {
+		return fmt.Errorf("failed to insert link: %w", err)
+	}
+	
+	return nil
 }
 
 func (s *PostgresStore) GetLinkByCode(ctx context.Context, shortCode string) (*model.Link, error) {
