@@ -4,6 +4,7 @@ package encoding
 
 import (
 	"math"
+	"strings"
 	"testing"
 )
 
@@ -174,4 +175,47 @@ func indexOfChar(c byte) int {
 		}
 	}
 	return -1
+}
+
+// Test: GenerateCode returns exactly 6 characters
+func TestGenerateCode_Length(t *testing.T) {
+	for i := 0; i < 100; i++ {
+		code, err := GenerateCode()
+		if err != nil {
+			t.Fatalf("GenerateCode returned error: %v", err)
+		}
+		if len(code) != 6 {
+			t.Errorf("Length = %d, want 6 (code: %s)", len(code), code)
+		}
+	}
+}
+
+// Test: Every character is in the Base62 alphabet
+func TestGenerateCode_ValidCharacters(t *testing.T) {
+	for i := 0; i < 100; i++ {
+		code, err := GenerateCode()
+		if err != nil {
+			t.Fatalf("GenerateCode returned error: %v", err)
+		}
+		for j, char := range code {
+			if !strings.ContainsRune(Alphabet, char) {
+				t.Errorf("Invalid character '%c' at position %d in code %s", char, j, code)
+			}
+		}
+	}
+}
+
+// Test: Two calls produce different codes
+func TestGenerateCode_Uniqueness(t *testing.T) {
+	seen := make(map[string]bool)
+	for i := 0; i < 1000; i++ {
+		code, err := GenerateCode()
+		if err != nil {
+			t.Fatalf("GenerateCode returned error: %v", err)
+		}
+		if seen[code] {
+			t.Errorf("Duplicate code generated: %s", code)
+		}
+		seen[code] = true
+	}
 }
