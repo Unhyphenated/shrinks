@@ -14,6 +14,7 @@ import (
 
 	"github.com/Unhyphenated/shrinks-backend/internal/analytics"
 	"github.com/Unhyphenated/shrinks-backend/internal/auth"
+	"github.com/Unhyphenated/shrinks-backend/internal/bloom"
 	"github.com/Unhyphenated/shrinks-backend/internal/cache"
 	"github.com/Unhyphenated/shrinks-backend/internal/encoding"
 	"github.com/Unhyphenated/shrinks-backend/internal/model"
@@ -87,8 +88,8 @@ func TestHandlerShorten_Success(t *testing.T) {
 	mockCache := newMockCache()
 	mockAnalytics := newMockAnalytics()
 
-	svc := service.NewLinkService(mockStore, mockCache, mockAnalytics)
-	handler := handlerShorten(svc)
+	svc := service.NewLinkService(mockStore, mockCache, mockAnalytics, bloom.NewBloomFilter(1000, 0.01))
+	handler := handlerShorten(svc, "sequential")
 
 	reqBody := model.CreateLinkRequest{URL: expectedLongURL}
 	jsonBody, _ := json.Marshal(reqBody)
@@ -130,8 +131,8 @@ func TestHandlerShorten_InternalServerError(t *testing.T) {
 	mockCache := newMockCache()
 	mockAnalytics := newMockAnalytics()
 
-	svc := service.NewLinkService(mockStore, mockCache, mockAnalytics)
-	handler := handlerShorten(svc)
+	svc := service.NewLinkService(mockStore, mockCache, mockAnalytics, bloom.NewBloomFilter(1000, 0.01))
+	handler := handlerShorten(svc, "sequential")
 
 	reqBody := model.CreateLinkRequest{URL: testURL}
 	jsonBody, _ := json.Marshal(reqBody)
@@ -159,8 +160,8 @@ func TestHandlerShorten_BadRequest(t *testing.T) {
 	mockStore := newMockStore(cfg)
 	mockCache := newMockCache()
 	mockAnalytics := newMockAnalytics()
-	svc := service.NewLinkService(mockStore, mockCache, mockAnalytics)
-	handler := handlerShorten(svc)
+	svc := service.NewLinkService(mockStore, mockCache, mockAnalytics, bloom.NewBloomFilter(1000, 0.01))
+	handler := handlerShorten(svc, "sequential")
 
 	invalidBody := `{"not_a_url_field": "test"}`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/links/shorten", bytes.NewReader([]byte(invalidBody)))
@@ -187,7 +188,7 @@ func TestHandlerRedirect_Success(t *testing.T) {
 	mockCache := newMockCache()
 	mockAnalytics := newMockAnalytics()
 
-	svc := service.NewLinkService(mockStore, mockCache, mockAnalytics)
+	svc := service.NewLinkService(mockStore, mockCache, mockAnalytics, bloom.NewBloomFilter(1000, 0.01))
 	handler := handlerRedirect(svc)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/links/abc123", nil)
@@ -215,7 +216,7 @@ func TestHandlerRedirect_NotFound(t *testing.T) {
 	mockCache := newMockCache()
 	mockAnalytics := newMockAnalytics()
 
-	svc := service.NewLinkService(mockStore, mockCache, mockAnalytics)
+	svc := service.NewLinkService(mockStore, mockCache, mockAnalytics, bloom.NewBloomFilter(1000, 0.01))
 	handler := handlerRedirect(svc)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/links/nonexistent", nil)

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/Unhyphenated/shrinks-backend/internal/analytics"
+	"github.com/Unhyphenated/shrinks-backend/internal/bloom"
 	"github.com/Unhyphenated/shrinks-backend/internal/cache"
 	"github.com/Unhyphenated/shrinks-backend/internal/model"
 	"github.com/Unhyphenated/shrinks-backend/internal/storage"
@@ -47,7 +48,7 @@ func TestShorten_Success(t *testing.T) {
 		return "abc123", nil
 	}
 
-	svc := NewLinkService(mockStore, newMockCache(), newMockAnalytics())
+	svc := NewLinkService(mockStore, newMockCache(), newMockAnalytics(), bloom.NewBloomFilter(1000, 0.01))
 
 	code, err := svc.Shorten(context.Background(), "https://example.com", nil)
 	if err != nil {
@@ -69,7 +70,7 @@ func TestShorten_WithUserID(t *testing.T) {
 		return "xyz789", nil
 	}
 
-	svc := NewLinkService(mockStore, newMockCache(), newMockAnalytics())
+	svc := NewLinkService(mockStore, newMockCache(), newMockAnalytics(), bloom.NewBloomFilter(1000, 0.01))
 
 	userID := uint64(42)
 	_, err := svc.Shorten(context.Background(), "https://example.com", &userID)
@@ -105,7 +106,7 @@ func TestRedirect_CacheHit(t *testing.T) {
 		}, nil
 	}
 
-	svc := NewLinkService(mockStore, mockCache, newMockAnalytics())
+	svc := NewLinkService(mockStore, mockCache, newMockAnalytics(), bloom.NewBloomFilter(1000, 0.01))
 
 	url, err := svc.Redirect(context.Background(), "cached", nil)
 	if err != nil {
@@ -146,7 +147,7 @@ func TestRedirect_CacheMiss_DBHit(t *testing.T) {
 		return nil
 	}
 
-	svc := NewLinkService(mockStore, mockCache, newMockAnalytics())
+	svc := NewLinkService(mockStore, mockCache, newMockAnalytics(), bloom.NewBloomFilter(1000, 0.01))
 
 	url, err := svc.Redirect(context.Background(), "fromdb", nil)
 	if err != nil {
@@ -177,7 +178,7 @@ func TestRedirect_NotFound(t *testing.T) {
 		return nil, nil // Cache miss
 	}
 
-	svc := NewLinkService(mockStore, mockCache, newMockAnalytics())
+	svc := NewLinkService(mockStore, mockCache, newMockAnalytics(), bloom.NewBloomFilter(1000, 0.01))
 
 	_, err := svc.Redirect(context.Background(), "nonexistent", nil)
 
@@ -211,7 +212,7 @@ func TestRedirect_RecordsAnalytics(t *testing.T) {
 		return nil
 	}
 
-	svc := NewLinkService(mockStore, mockCache, mockAnalytics)
+	svc := NewLinkService(mockStore, mockCache, mockAnalytics, bloom.NewBloomFilter(1000, 0.01))
 
 	event := &model.AnalyticsEvent{
 		IPAddress:  "1.2.3.0",
@@ -251,7 +252,7 @@ func TestGetGlobalStats_Success(t *testing.T) {
 		return 56789, nil
 	}
 
-	svc := NewLinkService(mockStore, newMockCache(), newMockAnalytics())
+	svc := NewLinkService(mockStore, newMockCache(), newMockAnalytics(), bloom.NewBloomFilter(1000, 0.01))
 
 	stats, err := svc.GetGlobalStats(context.Background())
 	if err != nil {
@@ -277,7 +278,7 @@ func TestGetGlobalStats_LinksError(t *testing.T) {
 		return 100, nil
 	}
 
-	svc := NewLinkService(mockStore, newMockCache(), newMockAnalytics())
+	svc := NewLinkService(mockStore, newMockCache(), newMockAnalytics(), bloom.NewBloomFilter(1000, 0.01))
 
 	_, err := svc.GetGlobalStats(context.Background())
 	if err == nil {
@@ -295,7 +296,7 @@ func TestGetGlobalStats_RequestsError(t *testing.T) {
 		return 0, errors.New("database error")
 	}
 
-	svc := NewLinkService(mockStore, newMockCache(), newMockAnalytics())
+	svc := NewLinkService(mockStore, newMockCache(), newMockAnalytics(), bloom.NewBloomFilter(1000, 0.01))
 
 	_, err := svc.GetGlobalStats(context.Background())
 	if err == nil {
@@ -305,7 +306,7 @@ func TestGetGlobalStats_RequestsError(t *testing.T) {
 
 func TestShorten_InvalidURL(t *testing.T) {
 	mockStore := newMockStore()
-	svc := NewLinkService(mockStore, newMockCache(), newMockAnalytics())
+	svc := NewLinkService(mockStore, newMockCache(), newMockAnalytics(), bloom.NewBloomFilter(1000, 0.01))
 	tests := []struct {
 		name    string
 		url     string
@@ -335,7 +336,7 @@ func TestShorten_InvalidURL(t *testing.T) {
 func TestShorten_ValidURLs(t *testing.T) {
 	mockStore := newMockStore()
 	mockStore.SaveLinkFn = func(ctx context.Context, longURL string, userID *uint64) (string, error) { return "abc123", nil }
-	svc := NewLinkService(mockStore, newMockCache(), newMockAnalytics())
+	svc := NewLinkService(mockStore, newMockCache(), newMockAnalytics(), bloom.NewBloomFilter(1000, 0.01))
 	validURLs := []string{"http://example.com", "https://example.com", "https://example.com/path", "https://example.com/path?query=1", "https://sub.example.com", "http://localhost:8080", "https://example.com:443/path"}
 	for _, url := range validURLs {
 		t.Run(url, func(t *testing.T) {

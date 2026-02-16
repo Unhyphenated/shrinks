@@ -8,6 +8,7 @@ import (
 
 type MockLinkService struct {
 	ShortenFn               func(ctx context.Context, longURL string, userID *uint64) (string, error)
+	ShortenRandomFn         func(ctx context.Context, longURL string, userID *uint64) (string, error)
 	RedirectFn              func(ctx context.Context, shortCode string, event *model.AnalyticsEvent) (string, error)
 	GetLinkByCodeFn         func(ctx context.Context, shortCode string) (*model.Link, error)
 	GetUserLinksFn          func(ctx context.Context, userID uint64, limit int, offset int) ([]model.Link, int, error)
@@ -19,6 +20,13 @@ type MockLinkService struct {
 func (m *MockLinkService) Shorten(ctx context.Context, longURL string, userID *uint64) (string, error) {
 	if m.ShortenFn != nil {
 		return m.ShortenFn(ctx, longURL, userID)
+	}
+	return "", nil
+}
+
+func (m *MockLinkService) ShortenRandom(ctx context.Context, longURL string, userID *uint64) (string, error) {
+	if m.ShortenRandomFn != nil {
+		return m.ShortenRandomFn(ctx, longURL, userID)
 	}
 	return "", nil
 }

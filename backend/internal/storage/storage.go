@@ -26,10 +26,12 @@ type Closer interface {
 type LinkStore interface {
 	Closer
 	SaveLink(ctx context.Context, longURL string, userID *uint64) (string, error)
+	SaveLinkWithCode(ctx context.Context, shortCode string, longURL string, userID *uint64) error
 	GetLinkByCode(ctx context.Context, code string) (*model.Link, error)
 	GetUserLinks(ctx context.Context, userID uint64, limit int, offset int) ([]model.Link, int, error)
 	DeleteLink(ctx context.Context, shortCode string, userID uint64) error
 	GetTotalLinks(ctx context.Context) (int, error)
+	GetAllCodes(ctx context.Context) ([]string, error)
 	GetTotalRequests(ctx context.Context) (int, error)
 }
 
@@ -114,6 +116,19 @@ func (s *PostgresStore) SaveLink(ctx context.Context, longURL string, userID *ui
 	}
 
 	return shortCode, nil
+}
+
+func (s *PostgresStore) SaveLinkWithCode(ctx context.Context, shortCode string, longURL string, userID *uint64) error {
+	insertQuery := `
+		INSERT INTO links (long_url, short_code, user_id) 
+		 VALUES ($1, $2, $3);
+    `
+	_, err := s.Pool.Exec(ctx, insertQuery, longURL, shortCode, userID)
+	if err != nil {
+		return fmt.Errorf("failed to insert link: %w", err)
+	}
+	
+	return nil
 }
 
 func (s *PostgresStore) GetLinkByCode(ctx context.Context, shortCode string) (*model.Link, error) {
@@ -442,6 +457,31 @@ func (s *PostgresStore) GetTotalLinks(ctx context.Context) (int, error) {
 		return 0, fmt.Errorf("failed to get total links: %w", err)
 	}
 	return total, nil
+}
+
+func (s *PostgresStore) GetAllCodes(ctx context.Context) ([]string, error) {
+	query := `
+		SELECT short_code
+		FROM links
+	`
+
+	rows, err := s.Pool.Query(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get all link codes: %w", err)
+	}
+	defer rows.Close()
+
+	var codes []string
+	for rows.Next() {
+		var code string
+		err := rows.Scan(&code)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan code: %w", err)
+		}
+		codes = append(codes, code)
+	}
+
+	return codes, nil
 }
 
 func (s *PostgresStore) GetTotalRequests(ctx context.Context) (int, error) {
