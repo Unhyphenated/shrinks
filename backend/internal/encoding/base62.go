@@ -1,12 +1,15 @@
 package encoding
 
 import (
+	"crypto/rand"
 	"errors"
 	"math/big"
+	"strings"
 )
 
 const Alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 const Base = 62
+const CodeLength = 6
 
 var decodeMap map[rune]uint64
 
@@ -56,4 +59,21 @@ func Decode(encoded string) (uint64, error) {
 	}
 
 	return result.Uint64(), nil
+}
+
+func GenerateCode() (string, error) {
+	bytes := make([]byte, CodeLength)
+	_, err := rand.Read(bytes)
+	if err != nil {
+		return "", err
+	}
+	
+	var sb strings.Builder
+	sb.Grow(CodeLength)
+
+	for _, val := range bytes {
+		sb.WriteByte(Alphabet[val % Base])
+	}
+
+	return sb.String(), nil
 }
