@@ -15,6 +15,14 @@ type BloomFilter struct {
 }
 
 func NewBloomFilter(expectedItems uint64, falsePositiveRate float64) *BloomFilter {
+	if expectedItems <= 0 {
+		expectedItems = 1000 // Avoid division by zero
+	}
+
+	if falsePositiveRate <= 0 || falsePositiveRate >= 1 {
+		falsePositiveRate = 0.01
+	}
+
 	n := float64(expectedItems)
 	p := falsePositiveRate
 	m := math.Ceil(-(n * math.Log(p)) / (math.Ln2 * math.Ln2))
