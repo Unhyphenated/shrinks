@@ -32,6 +32,10 @@ func main() {
 
 	// Random used Bloom Filter implementation
 	mode := os.Getenv("MODE")
+	expectedItems, err := strconv.ParseUint(os.Getenv("EXPECTED_ITEMS"), 10, 64)
+	if err != nil {
+		expectedItems = 1000 // Default expected items
+	}
 	falsePositiveRate, err := strconv.ParseFloat(os.Getenv("FALSE_POSITIVE_RATE"), 64)
 	if err != nil {
 		falsePositiveRate = 0.01 // Default false positive rate
@@ -63,9 +67,13 @@ func main() {
 		log.Fatalf("Failed to retrieve link count %v", err)
 	}
 
+	if uint64(total) < expectedItems {
+		total = int(expectedItems)
+	}
+
 	var bloomFilter *bloom.BloomFilter
 	if mode == "random" {
-		bloomFilter = bloom.NewBloomFilter(uint64(total * 2), falsePositiveRate)
+		bloomFilter = bloom.NewBloomFilter(expectedItems, falsePositiveRate)
 		codes, err := store.GetAllCodes(context.Background())
 		if err != nil {
 			log.Fatalf("Failed to retrieve codes %v", err)
