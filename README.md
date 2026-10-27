@@ -9,47 +9,18 @@ A URL shortener built to work through the core backend design decisions: ID gene
 
 ## Architecture
 
-```mermaid
-flowchart TB
-    Client["Browser / Client"]
-    
-    subgraph Docker["Docker Compose"]
-        subgraph FE["Frontend :3000"]
-            React["React + TypeScript + Vite"]
-        end
-        
-        subgraph BE["Backend :8080"]
-            Router["net/http Router"]
-            Auth["Auth Middleware\nJWT Validation"]
-            Handler["Handlers"]
-            LinkSvc["LinkService"]
-            AuthSvc["AuthService"]
-            AnalyticsSvc["AnalyticsService"]
-            Bloom["Bloom Filter\n(in-memory)"]
-            B62["Base62 Encoder\nRandom Generator"]
-        end
-        
-        subgraph Data["Data Layer"]
-            Redis["Redis 7 for Cache-Aside"]
-            PG["PostgreSQL 15 for Links · Users · Analytics"]
-        end
-    end
-    
-    Client -->|"HTTP"| React
-    Client -->|"GET /:code"| Router
-    React -->|"API calls"| Router
-    Router --> Auth
-    Auth --> Handler
-    Handler --> LinkSvc
-    Handler --> AuthSvc
-    LinkSvc --> AnalyticsSvc
-    LinkSvc --> Bloom
-    LinkSvc --> B62
-    LinkSvc -->|"Cache hit?"| Redis
-    LinkSvc -->|"Cache miss / Write"| PG
-    AuthSvc --> PG
-    AnalyticsSvc --> PG
-    Redis -.->|"Fallback"| PG
+```
+                         ┌──────────────── Go API ────────────────┐
+                         │                                        │      hit   ┌───────────────┐
+  Browser ──short link──▶│  GET /:code ───────────────────────────┼───────────▶│ Redis         │
+     │                   │       │                                │            │ cache-aside   │
+     │                   │       └─────────── miss ───────────────┼──┐         └───────────────┘
+     ▼                   │                                        │  │
+  React dashboard ──────▶│  JWT auth ──▶ Create link              │  │         ┌───────────────┐
+                         │               (base62, Bloom filter) ──┼──┴────────▶│ PostgreSQL    │
+                         │                                        │            │ links, users, │
+                         └────────────────────────────────────────┘            │ clicks        │
+                                                                               └───────────────┘
 ```
 
 ## Key Metrics (single MacBook Air M1, local Docker)
