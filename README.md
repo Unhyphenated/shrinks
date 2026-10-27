@@ -1,11 +1,11 @@
-# Shrinks - High-Performance URL Shortener
+# Shrinks
+## URL Shortener
 
 [![Go Version](https://img.shields.io/badge/Go-1.24-00ADD8?logo=go)](https://go.dev/)
-[![CI Status](https://img.shields.io/badge/CI-passing-brightgreen)]()
-[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker)](https://www.docker.com/)
+[![CI](https://github.com/Unhyphenated/shrinks/actions/workflows/ci.yml/badge.svg)](https://github.com/Unhyphenated/shrinks/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**A production-grade URL shortener built to demonstrate backend systems design at scale.** Handles 5,000+ requests/second with sub-5ms P99 latency using Go, PostgreSQL, and Redis. Features JWT authentication, per-link analytics, a Bloom filter for collision detection, and a React dashboard — all containerized with Docker Compose and tested through CI.
+A URL shortener built to work through the core backend design decisions: ID generation, caching, collision detection and token auth. Go, PostgreSQL and Redis behind a React dashboard. On a single M1 laptop it serves ~5,000 reads/s at 3.1ms P99 with a warm cache, and writes top out around 1,000/s when PostgreSQL becomes the bottleneck.
 
 ## Architecture
 
@@ -52,7 +52,7 @@ flowchart TB
     Redis -.->|"Fallback"| PG
 ```
 
-## Key Metrics
+## Key Metrics (single MacBook Air M1, local Docker)
 
 Load tested with [Vegeta](https://github.com/tsenart/vegeta) on a MacBook Air M1.
 
